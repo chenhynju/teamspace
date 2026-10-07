@@ -1,0 +1,23 @@
+{
+  "name": "teamspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TeamSpace: 企业项目协作云 - 多租户 B2B SaaS",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "dev:api": "pnpm --filter @teamspace/api run dev",
+    "dev:web": "pnpm --filter @teamspace/web run dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "db:generate": "pnpm --filter @teamspace/api exec prisma generate",
+    "db:migrate": "pnpm --filter @teamspace/api exec prisma migrate dev",
+    "db:seed": "pnpm --filter @teamspace/api exec ts-node prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

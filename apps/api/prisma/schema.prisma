@@ -1,0 +1,803 @@
+// TeamSpace Prisma Schema —— 多租户 B2B SaaS
+// 业务模型参考 RuoYi-Vue（用户/角色/菜单/部门/岗位 + 功能权限/数据权限），
+// 并扩展为多租户：角色/部门/岗位/公告按组织隔离，菜单为全局模板。
+//
+// RuoYi 约定映射：
+//   菜单类型 M目录 -> DIR，C菜单 -> MENU，F按钮 -> BUTTON
+//   状态 0正常/1停用 -> NORMAL/DISABLED；显示 0显示/1隐藏 -> SHOW/HIDE
+//   数据范围 1全部/2自定义/3本部门/4本部门及以下/5仅本人
+//
+// 业务状态机：
+//   Invitation: pending -> accepted / revoked / expired
+//   Membership: active -> suspended -> removed
+//   Project:    draft -> active -> delivered -> archived
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 全局身份 ====================
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String?    @map("password_hash") // 邮箱注册有值；纯 OAuth 为空
+  name            String
+  avatarUrl       String?    @map("avatar_url")
+  status          CommonStatus @default(NORMAL)
+  isPlatformAdmin Boolean    @default(false) @map("is_platform_admin") // 平台超管（对应 RuoYi userId=1）
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  oauthAccounts UserOAuth[]
+  verificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  memberships    Membership[]
+  invitedList    Invitation[] @relation("InvitedBy")
+  acceptedList   Invitation[] @relation("AcceptedBy")
+  ownedProjects  Project[]    @relation("ProjectOwner")
+  assignedTasks  Task[]       @relation("TaskAssignee")
+  operLogs       OperLog[]    @relation("OperActor")
+  uploads        File[]       @relation("FileUploader")
+  conversationsCreated Conversation[]
+  conversationMembers  ConversationMember[]
+  messagesSent     Message[]
+  messageAttachmentsUploaded MessageAttachment[]
+
+  @@map("sys_user")
+}
+
+model UserOAuth {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  provider       OAuthProvider
+  providerUserId String   @map("provider_user_id")
+  accessToken    String?  @map("access_token")
+  refreshToken   String?  @map("refresh_token")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@map("sys_user_oauth")
+}
+
+// 邮箱验证凭证（注册后发信，点击链接验证；非组织维度，按 user_id 隔离）
+model EmailVerificationToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sys_email_verification_token")
+}
+
+// 密码重置凭证（忘记密码时发信，点击链接设置新密码；非组织维度，按 user_id 隔离）
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sys_password_reset_token")
+}
+
+// ==================== 租户：组织 / 工作区 ====================
+
+model Organization {
+  id        String     @id @default(cuid())
+  name      String
+  slug      String     @unique
+  planId    String?    @map("plan_id")
+  status    OrgStatus  @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  plan          Plan?          @relation(fields: [planId], references: [id])
+  workspaces    Workspace[]
+  memberships   Membership[]
+  roles         Role[]
+  depts         Dept[]
+  posts         Post[]
+  invitations   Invitation[]
+  projects      Project[]
+  tasks         Task[]
+  files         File[]
+  fileShares    FileShare[]
+  subscriptions Subscription[]
+  entitlement   Entitlement?
+  billingEvents BillingEvent[]
+  notices       Notice[]
+  operLogs      OperLog[]
+  conversations Conversation[]
+  conversationMembers ConversationMember[]
+  messages      Message[]
+  messageAttachments MessageAttachment[]
+
+  @@map("org_organization")
+}
+
+model Workspace {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects     Project[]
+
+  @@unique([organizationId, name])
+  @@map("org_workspace")
+}
+
+// 组织成员关系：承载组织内身份（所属部门 + 状态），角色/岗位通过关联表 N-N
+model Membership {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  userId         String       @map("user_id")
+  deptId         String?      @map("dept_id")
+  status         MemberStatus @default(ACTIVE)
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dept         Dept?              @relation(fields: [deptId], references: [id])
+  roles        MembershipRole[]
+  posts        MembershipPost[]
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, status])
+  @@index([deptId])
+  @@map("org_membership")
+}
+
+// ==================== RBAC（RuoYi 风格） ====================
+
+// 菜单 = 统一的功能权限载体（目录/菜单/按钮），全局模板，各组织共用
+model Menu {
+  id         String     @id @default(cuid())
+  parentId   String?    @map("parent_id")
+  name       String     @map("menu_name")
+  type       MenuType   @default(MENU) // DIR 目录 / MENU 菜单 / BUTTON 按钮
+  orderNum   Int        @default(0) @map("order_num")
+  path       String?
+  component  String?
+  query      String?
+  routeName  String?    @map("route_name")
+  isFrame    Boolean    @default(false) @map("is_frame") // 是否外链
+  isCache    Boolean    @default(false) @map("is_cache")
+  visible    ShowHide   @default(SHOW)
+  status     CommonStatus @default(NORMAL)
+  perms      String?    // 权限标识，如 system:user:list
+  icon       String?    @default("#")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  parent   Menu?      @relation("MenuParent", fields: [parentId], references: [id])
+  children Menu[]     @relation("MenuParent")
+  roles    RoleMenu[]
+
+  @@index([parentId])
+  @@map("sys_menu")
+}
+
+// 角色：organizationId=null 为系统模板角色，建组织时克隆为组织角色供自由定制
+model Role {
+  id                String     @id @default(cuid())
+  organizationId    String?    @map("organization_id")
+  name              String
+  key               String     @map("role_key") // OWNER/ADMIN/MEMBER/GUEST/FINANCE 或自定义
+  sort              Int        @default(0)
+  dataScope         DataScope  @default(SELF) @map("data_scope")
+  menuCheckStrictly Boolean    @default(true) @map("menu_check_strictly")
+  deptCheckStrictly Boolean    @default(true) @map("dept_check_strictly")
+  status            CommonStatus @default(NORMAL)
+  remark            String?
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  menus        RoleMenu[]
+  depts        RoleDept[]
+  memberships  MembershipRole[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, key])
+  @@map("sys_role")
+}
+
+model RoleMenu {
+  roleId String @map("role_id")
+  menuId String @map("menu_id")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, menuId])
+  @@map("sys_role_menu")
+}
+
+model RoleDept {
+  roleId String @map("role_id")
+  deptId String @map("dept_id")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  dept Dept @relation(fields: [deptId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, deptId])
+  @@map("sys_role_dept")
+}
+
+model MembershipRole {
+  membershipId String @map("membership_id")
+  roleId       String @map("role_id")
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, roleId])
+  @@index([roleId])
+  @@map("org_membership_role")
+}
+
+// ==================== 部门 / 岗位（组织隔离） ====================
+
+model Dept {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  parentId       String?  @map("parent_id")
+  ancestors      String   @default("") // 祖级列表（物化路径）
+  name           String   @map("dept_name")
+  orderNum       Int      @default(0) @map("order_num")
+  leader         String?
+  phone          String?
+  email          String?
+  status         CommonStatus @default(NORMAL)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Dept?              @relation("DeptParent", fields: [parentId], references: [id])
+  children     Dept[]             @relation("DeptParent")
+  roles        RoleDept[]
+  memberships  Membership[]
+
+  @@unique([organizationId, name])
+  @@index([parentId])
+  @@map("sys_dept")
+}
+
+model Post {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  code           String   @map("post_code")
+  name           String   @map("post_name")
+  sort           Int      @default(0) @map("post_sort")
+  status         CommonStatus @default(NORMAL)
+  remark         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  MembershipPost[]
+
+  @@unique([organizationId, code])
+  @@map("sys_post")
+}
+
+model MembershipPost {
+  membershipId String @map("membership_id")
+  postId       String @map("post_id")
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, postId])
+  @@index([postId])
+  @@map("org_membership_post")
+}
+
+// ==================== 邀请 ====================
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  email          String
+  roleId         String       @map("role_id")
+  tokenHash      String       @unique @map("token_hash")
+  expiresAt      DateTime     @map("expires_at")
+  status         InviteStatus @default(PENDING)
+  invitedById    String       @map("invited_by")
+  acceptedById   String?      @map("accepted_by")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  acceptedAt     DateTime?    @map("accepted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id])
+  acceptedBy   User?        @relation("AcceptedBy", fields: [acceptedById], references: [id])
+
+  @@index([organizationId, email])
+  @@map("org_invitation")
+}
+
+// ==================== 项目 / 任务 / 文件 ====================
+
+model Project {
+  id             String        @id @default(cuid())
+  organizationId String        @map("organization_id")
+  workspaceId    String        @map("workspace_id")
+  ownerId        String        @map("owner_id")
+  name           String
+  description    String?
+  status         ProjectStatus @default(DRAFT)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner        User         @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tasks        Task[]
+  files        File[]
+
+  @@index([organizationId, workspaceId])
+  @@map("prj_project")
+}
+
+model Task {
+  id             String     @id @default(cuid())
+  organizationId String     @map("organization_id")
+  projectId      String     @map("project_id")
+  title          String
+  description    String?
+  assigneeId     String?    @map("assignee_id")
+  status         TaskStatus @default(TODO)
+  priority       Int        @default(2)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@map("prj_task")
+}
+
+model File {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  projectId      String   @map("project_id")
+  name           String
+  objectKey      String   @map("object_key")
+  size           BigInt
+  mimeType       String   @map("mime_type")
+  version        Int      @default(1)
+  uploadedById   String   @map("uploaded_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation("FileUploader", fields: [uploadedById], references: [id])
+  shares       FileShare[]
+
+  @@map("prj_file")
+}
+
+model FileShare {
+  id               String    @id @default(cuid())
+  organizationId   String    @map("organization_id")
+  fileId           String    @map("file_id")
+  sharedWithUserId String?   @map("shared_with_user_id")
+  expiresAt        DateTime? @map("expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  file         File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("prj_file_share")
+}
+
+// ==================== 套餐 / 权益 / 计费 ====================
+
+model Plan {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  priceMonthly  Decimal  @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly   Decimal  @map("price_yearly") @db.Decimal(10, 2)
+  seatsIncluded Int      @map("seats_included")
+  aiCredits     Int      @map("ai_credits")
+  maxProjects   Int      @map("max_projects")
+  storageGb     Int      @map("storage_gb")
+  features      Json
+  status        CommonStatus @default(NORMAL)
+
+  organizations Organization[]
+  subscriptions Subscription[]
+  entitlements  Entitlement[]
+
+  @@map("bill_plan")
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  organizationId     String    @map("organization_id")
+  planId             String    @map("plan_id")
+  status             SubStatus @default(ACTIVE)
+  currentPeriodStart DateTime  @map("current_period_start")
+  currentPeriodEnd   DateTime  @map("current_period_end")
+  seats              Int       @default(1)
+  cancelAtPeriodEnd  Boolean   @default(false) @map("cancel_at_period_end")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@map("bill_subscription")
+}
+
+model Entitlement {
+  id             String   @id @default(cuid())
+  organizationId String   @unique @map("organization_id")
+  planId         String   @map("plan_id")
+  seatsIncluded  Int      @map("seats_included")
+  aiCreditsTotal Int      @map("ai_credits_total")
+  aiCreditsUsed  Int      @default(0) @map("ai_credits_used")
+  maxProjects    Int      @map("max_projects")
+  storageGb      Int      @map("storage_gb")
+  features       Json
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@map("bill_entitlement")
+}
+
+model BillingEvent {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  provider       String
+  eventId        String   @map("event_id")
+  type           String
+  payload        Json
+  processed      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, eventId])
+  @@map("bill_billing_event")
+}
+
+// ==================== 字典 / 参数配置 ====================
+
+model DictType {
+  id        String   @id @default(cuid())
+  name      String   @map("dict_name")
+  type      String   @unique @map("dict_type")
+  status    CommonStatus @default(NORMAL)
+  remark    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  data DictData[]
+
+  @@map("sys_dict_type")
+}
+
+model DictData {
+  id         String   @id @default(cuid())
+  sort       Int      @default(0) @map("dict_sort")
+  label      String   @map("dict_label")
+  value      String   @map("dict_value")
+  dictType   String   @map("dict_type")
+  cssClass   String?  @map("css_class")
+  listClass  String?  @map("list_class")
+  isDefault  YesNo    @default(NO) @map("is_default")
+  status     CommonStatus @default(NORMAL)
+  remark     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  typeInfo DictType @relation(fields: [dictType], references: [type], onDelete: Cascade)
+
+  @@index([dictType])
+  @@map("sys_dict_data")
+}
+
+model Config {
+  id         String   @id @default(cuid())
+  name       String   @map("config_name")
+  key        String   @unique @map("config_key")
+  value      String   @map("config_value")
+  configType YesNo    @default(NO) @map("config_type") // Y 系统内置
+  remark     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("sys_config")
+}
+
+// ==================== 通知公告（组织隔离） ====================
+
+model Notice {
+  id          String       @id @default(cuid())
+  organizationId String    @map("organization_id")
+  title       String       @map("notice_title")
+  type        NoticeType   @default(NOTICE)
+  content     String       @map("notice_content")
+  status      CommonStatus @default(NORMAL)
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reads        NoticeRead[]
+
+  @@index([organizationId])
+  @@map("sys_notice")
+}
+
+model NoticeRead {
+  id       String   @id @default(cuid())
+  noticeId String   @map("notice_id")
+  userId   String   @map("user_id")
+  readTime DateTime @default(now()) @map("read_time")
+
+  notice Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+
+  @@unique([noticeId, userId])
+  @@map("sys_notice_read")
+}
+
+// ==================== IM（即时通讯，组织隔离） ====================
+
+model Conversation {
+  id             String           @id @default(cuid())
+  organizationId String           @map("organization_id")
+  type           ConversationType
+  title          String?
+  directKey      String?          @map("direct_key")
+  createdById    String           @map("created_by_id")
+  lastMessageAt  DateTime?        @map("last_message_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User @relation(fields: [createdById], references: [id])
+  members      ConversationMember[]
+  messages     Message[]
+  attachments  MessageAttachment[]
+
+  @@unique([organizationId, directKey])
+  @@index([organizationId, lastMessageAt(sort: Desc)])
+  @@map("im_conversation")
+}
+
+model ConversationMember {
+  id                String                   @id @default(cuid())
+  conversationId    String                   @map("conversation_id")
+  organizationId    String                   @map("organization_id")
+  userId            String                   @map("user_id")
+  role              ConversationMemberRole   @default(MEMBER)
+  status            ConversationMemberStatus @default(ACTIVE)
+  lastReadMessageId String?                  @map("last_read_message_id")
+  joinedAt          DateTime                 @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+  @@index([organizationId, userId, status])
+  @@map("im_conversation_member")
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String      @map("conversation_id")
+  organizationId String      @map("organization_id")
+  senderId       String      @map("sender_id")
+  type           MessageType
+  content        String
+  attachmentId   String?     @map("attachment_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sender       User @relation(fields: [senderId], references: [id])
+  attachment   MessageAttachment? @relation(fields: [attachmentId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("im_message")
+}
+
+model MessageAttachment {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  conversationId String   @map("conversation_id")
+  uploaderId     String   @map("uploader_id")
+  name           String
+  objectKey      String   @map("object_key")
+  size           BigInt
+  mimeType       String   @map("mime_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  uploader     User @relation(fields: [uploaderId], references: [id])
+  messages     Message[]
+
+  @@map("im_message_attachment")
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum ConversationMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum ConversationMemberStatus {
+  ACTIVE
+  LEFT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
+// ==================== 日志 / Outbox ====================
+
+// 操作日志（对应 RuoYi sys_oper_log，同时承担本项目审计）
+model OperLog {
+  id            String   @id @default(cuid())
+  organizationId String  @map("organization_id")
+  actorId       String?  @map("actor_id")
+  title         String   // 模块标题
+  businessType  Int      @default(0) @map("business_type") // 0其它 1新增 2修改 3删除
+  method        String?
+  requestMethod String?  @map("request_method")
+  action        String   // 权限标识/动作
+  resourceType  String   @map("resource_type")
+  resourceId    String?  @map("resource_id")
+  beforeValue   Json?    @map("before_value")
+  afterValue    Json?    @map("after_value")
+  traceId       String   @map("trace_id")
+  ip            String?
+  status        Int      @default(0) // 0正常 1异常
+  costTime      Int      @default(0) @map("cost_time")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation("OperActor", fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("sys_oper_log")
+}
+
+// 登录日志（全局）
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  username  String
+  ip        String?
+  browser   String?
+  os        String?
+  status    Int      @default(0) // 0成功 1失败
+  msg       String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("sys_login_log")
+}
+
+model Outbox {
+  id            String   @id @default(cuid())
+  aggregateType String   @map("aggregate_type")
+  aggregateId   String   @map("aggregate_id")
+  eventType     String   @map("event_type")
+  payload       Json
+  status        Int      @default(0)
+  attempts      Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  processedAt   DateTime? @map("processed_at")
+
+  @@index([status, createdAt])
+  @@map("sys_outbox")
+}
+
+// ==================== 枚举 ====================
+
+enum CommonStatus {
+  NORMAL
+  DISABLED
+}
+
+enum ShowHide {
+  SHOW
+  HIDE
+}
+
+enum MenuType {
+  DIR
+  MENU
+  BUTTON
+}
+
+enum DataScope {
+  ALL
+  CUSTOM
+  DEPT
+  DEPT_AND_CHILD
+  SELF
+}
+
+enum YesNo {
+  YES
+  NO
+}
+
+enum OAuthProvider {
+  GOOGLE
+  GITHUB
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum MemberStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  DELIVERED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
+
+enum NoticeType {
+  NOTICE
+  ANNOUNCEMENT
+}
