@@ -17,7 +17,8 @@ FROM node:20-alpine AS runner
 # 因此 runner 内必须保持 <root>/node_modules 与 <root>/apps/api/* 的相对位置一致
 WORKDIR /app
 ENV NODE_ENV=production
-RUN addgroup -S app && adduser -S app -G app
+# openssl CLI：Prisma 运行时用它探测引擎版本（musl-openssl-3.0.x），缺失会回退 1.1 引擎导致崩溃
+RUN addgroup -S app && adduser -S app -G app && apk add --no-cache openssl
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /repo/apps/api/dist ./apps/api/dist
