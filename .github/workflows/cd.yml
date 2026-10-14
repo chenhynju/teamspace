@@ -1,0 +1,120 @@
+name: CD — Build & Deploy to ECS
+
+on:
+  # 配置好 AWS OIDC Role 与 Secrets 后，改为 push 自动触发：
+  # on:
+  #   push:
+  #     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  ECR_API_REPO: teamspace-api
+  ECR_WEB_REPO: teamspace-web
+  ECS_CLUSTER: teamspace
+  ECS_API_SERVICE: teamspace-api
+  ECS_WEB_SERVICE: teamspace-web
+
+jobs:
+  build-and-deploy:
+    name: Build · Push · Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tags
+        id: tags
+        run: |
+          SHA="${GITHUB_SHA::12}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "registry=${{ steps.ecr.outputs.registry }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ steps.tags.outputs.sha }}
+            ${{ steps.tags.outputs.registry }}/${{ env.ECR_API_REPO }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_WS_URL=${{ vars.NEXT_PUBLIC_WS_URL }}
+          tags: |
+            ${{ steps.tags.outputs.registry }}/${{ env.ECR_WEB_REPO }}:${{ steps.tags.outputs.sha }}
+            ${{ steps.tags.outputs.registry }}/${{ env.ECR_WEB_REPO }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Download API task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_API_SERVICE }} \
+            --query taskDefinition > /tmp/api-taskdef.json
+
+      - name: Render API task definition with new image
+        id: api-taskdef
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: /tmp/api-taskdef.json
+          container-name: api
+          image: ${{ steps.tags.outputs.registry }}/${{ env.ECR_API_REPO }}:${{ steps.tags.outputs.sha }}
+
+      - name: Deploy API to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.api-taskdef.outputs.task-definition }}
+          service: ${{ env.ECS_API_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Download Web task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_WEB_SERVICE }} \
+            --query taskDefinition > /tmp/web-taskdef.json
+
+      - name: Render Web task definition with new image
+        id: web-taskdef
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: /tmp/web-taskdef.json
+          container-name: web
+          image: ${{ steps.tags.outputs.registry }}/${{ env.ECR_WEB_REPO }}:${{ steps.tags.outputs.sha }}
+
+      - name: Deploy Web to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.web-taskdef.outputs.task-definition }}
+          service: ${{ env.ECS_WEB_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

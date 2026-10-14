@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { useImStore } from '@/store/im';
@@ -9,7 +9,7 @@ import ConversationList from '@/components/im/ConversationList';
 import ChatWindow from '@/components/im/ChatWindow';
 import NewConversationModal from '@/components/im/NewConversationModal';
 
-export default function ImPage() {
+function ImContent() {
   const searchParams = useSearchParams();
   const currentOrgId = useAuthStore((s) => s.currentOrgId);
   const { setConversations, setCurrentConversationId } = useImStore();
@@ -48,6 +48,14 @@ export default function ImPage() {
       </div>
       {showNewModal && <NewConversationModal onClose={() => setShowNewModal(false)} />}
     </div>
+  );
+}
+
+export default function ImPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-400 text-sm">加载中…</div>}>
+      <ImContent />
+    </Suspense>
   );
 }
 

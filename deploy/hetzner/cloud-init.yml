@@ -1,0 +1,45 @@
+#cloud-config
+# Hetzner Cloud Server 启动脚本：一键准备 TeamSpace 生产运行环境。
+# 用法：Hetzner Console 创建服务器时粘贴到 "User data" 字段。
+# 适用：Ubuntu 22.04/24.04。完成后 SSH 登录执行 /opt/teamspace/deploy/hetzner/deploy.sh。
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - nginx
+  - ufw
+  - fail2ban
+  - certbot
+  - python3-certbot-nginx
+  - git
+  - curl
+
+runcmd:
+  # Docker 开机自启
+  - systemctl enable --now docker
+
+  # UFW 防火墙：仅放行 SSH / HTTP / HTTPS
+  - ufw --force enable
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+
+  # fail2ban 防护 SSH 暴力破解
+  - systemctl enable --now fail2ban
+
+  # 克隆仓库到 /opt/teamspace
+  - git clone --depth 1 https://github.com/chenhynju/teamspace.git /opt/teamspace
+
+  # 部署脚本可执行
+  - chmod +x /opt/teamspace/deploy/hetzner/deploy.sh
+
+  # Nginx 配置（部署脚本会按域名替换占位符）
+  - cp /opt/teamspace/deploy/nginx.conf /etc/nginx/conf.d/teamspace.conf
+  - nginx -t
+
+final_message: "TeamSpace 环境已就绪。SSH 登录后编辑 /opt/teamspace/.env.production，再运行 /opt/teamspace/deploy/hetzner/deploy.sh 完成部署。"

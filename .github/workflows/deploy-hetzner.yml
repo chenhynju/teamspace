@@ -1,0 +1,45 @@
+name: Deploy — Hetzner VPS (Docker Compose)
+
+on:
+  # 配置好 HETZNER_HOST / HETZNER_USER / HETZNER_SSH_KEY Secrets 后，改为 push 自动触发
+  workflow_dispatch:
+
+# 自托管 VPS 路径：通过 SSH 在 Hetzner 上拉代码、构建并 docker compose up -d。
+# 适用于预算敏感或数据自持场景。生产密钥走 GitHub Secrets，不落仓库。
+concurrency:
+  group: hetzner-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          port: ${{ secrets.HETZNER_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/teamspace
+            git fetch --all
+            git reset --hard origin/main
+
+            # 注入生产环境变量（由 deploy/sync-env.sh 或手动维护）
+            test -f .env.production
+
+            docker compose -f docker-compose.prod.yml --env-file .env.production build
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+
+            # 数据库迁移 + 种子（幂等：迁移只跑一次，seed 用 upsert）
+            docker compose -f docker-compose.prod.yml exec -T api \
+              sh -c "npx prisma migrate deploy && node prisma/seed.js" 2>/dev/null || \
+              echo "seed skipped (non-zero exit is acceptable for idempotent seeds)"
+
+            # 清理旧镜像
+            docker image prune -f

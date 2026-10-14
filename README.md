@@ -96,8 +96,8 @@
 | 邮件与通知 | Resend + React Email；SES 为规模化或 AWS 备选；Twilio 仅在短信/语音需要时加入 | 邮件 job、投递事件和业务成功分别记录；退信/失败可追踪 |
 | 鉴权 | WorkOS AuthKit/SSO + 应用授权；本地 Keycloak/OIDC 替身 | 认证供应商只确认身份；资源权限仍由本项目服务端执行 |
 | 支付/套餐 | Stripe Checkout/Billing + Customer Portal，沙盒验签与事件对账 | 不用软件订阅收款代替账本、托管或协议的资产状态 |
-| 可观测与告警 | Sentry 错误追踪 + OpenTelemetry；Prometheus/Grafana 指标；PagerDuty 在明确需要值班升级时启用 | 告警要有 owner、严重性、去重键和可执行恢复说明 |
-| 开发与部署 | Docker/Compose + GitHub Actions；AWS 托管数据库/S3；Kubernetes + Helm + Terraform 为部署阶段路线 | 本地可运行优先；出现多 worker/GPU/可用性需求后启用 k8s，首版不强制自建集群 |
+| 可观测与告警 | 结构化 JSON 日志（AsyncLocalStorage 注入 traceId）+ `/health` 存活/就绪探针 + CloudWatch 告警（CPU/5xx/不健康实例/RDS 存储） | 日志可被 CloudWatch/ELK/Loki 直接解析；探针驱动 ALB/Nginx 自动摘流 |
+| 开发与部署 | **Docker 多阶段构建** + **GitHub Actions CI/CD**（lint/build/test + 镜像推送 ECR + ECS 滚动部署）+ **Terraform IaC**（VPC/ECS Fargate/ALB/RDS/ElastiCache/CloudWatch/Route53）+ **Nginx 反代** + **Hetzner VPS 自托管** 备选 | 每条部署路径都有可执行代码；密钥走 GitHub Secrets / AWS Secrets Manager，仓库仅含 `.example` |
 
 主投 Full-Stack/Backend SaaS 或对应专项岗位；J01/J02 展示 React/Node/SQL 和 Next.js/TypeScript 组合。NestJS 是结合用户偏好与模块化需求的选择；本次样本不支持宣称 NestJS 占岗位多数。 样本编号和地区限制见 [岗位与产品来源](../../SOURCES.md)；全局选型规则见 [技术栈策略](../../TECH_STACK.md)。这是有限岗位样本下的选择建议，不是招聘市场份额统计，也不保证在中国可申请所有列出的岗位。
 
@@ -108,6 +108,28 @@
 - 长任务入口先持久化任务再返回 ID；进度、取消和错误在刷新后仍可查。超时、并发与预算以配置控制，避免无限重试。
 - 以本题功能表的独立验收结果作为首要质量指标；成功率统计排除被正确拒绝的请求，并单列异常和恢复结果。
 - 产品指标至少包括任务完成率、首次获得价值的时间、人工修正/接管比例和每次成功结果的成本；按本题角色建立基线后再设商业目标。
+
+## 部署与平台工程能力
+
+本仓库自带生产级部署代码，覆盖三条路径，展示「全栈 + 平台工程」复合能力：
+
+| 路径 | 代码位置 | 适用场景 |
+| --- | --- | --- |
+| **AWS ECS Fargate**（主路径） | `terraform/` + `.github/workflows/` | 弹性伸缩、托管数据库与缓存、CloudWatch 监控 |
+| **Hetzner VPS 自托管** | `deploy/hetzner/` + `docker-compose.prod.yml` + `deploy/nginx.conf` | 预算敏感、数据自持、单节点即可跑全套 |
+| **云托管** | `deploy/DEPLOY.md`（Vercel + Render/Railway + Neon + Upstash） | 零运维快速上线 |
+
+**CI/CD（`.github/workflows/`）：**
+- `ci.yml` — PR 触发：lint、build、test、Terraform fmt/validate、Dockerfile hadolint
+- `cd.yml` — 合入 main：构建多阶段镜像 → 推送 ECR → 更新 ECS 任务定义 → 滚动部署（OIDC 免长期密钥）
+- `terraform.yml` — PR 输出 plan 评论、main 分支 apply（S3 remote state + DynamoDB 锁）
+- `deploy-hetzner.yml` — 手动/VPS 路径：SSH 拉代码 + docker compose 部署
+
+**IaC（`terraform/`）：** VPC（公/私有子网 + NAT）、ECS Fargate 集群与服务、ALB（HTTPS + WebSocket Upgrade + 路径分发）、RDS PostgreSQL（私有子网、加密、PITR）、ElastiCache Redis（TLS + AUTH）、IAM 最小权限角色、CloudWatch 日志组 + 告警 + 仪表盘、Route53 + ACM 证书自动校验。
+
+**可观测：** API 输出结构化 JSON 日志（每行一个 JSON，traceId 经 AsyncLocalStorage 注入），`/health/live` 与 `/health/ready` 探针驱动 ALB/Nginx 摘流，CloudWatch 告警覆盖 CPU、5xx、不健康实例、RDS 存储。
+
+密钥一律走 GitHub Secrets / AWS Secrets Manager，仓库仅含 `.env.production.example` 与 `terraform.tfvars.example`。
 
 ## 可审查交付
 

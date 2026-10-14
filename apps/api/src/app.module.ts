@@ -21,6 +21,7 @@ import { ImModule } from './modules/im/im.module';
 import { SystemModule } from './modules/system/system.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { MonitorModule } from './modules/monitor/monitor.module';
+import { HealthModule } from './modules/health/health.module';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -47,6 +48,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     SystemModule,
     NoticesModule,
     MonitorModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

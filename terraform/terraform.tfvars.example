@@ -1,0 +1,52 @@
+# TeamSpace Terraform 变量示例
+# 复制为 terraform.tfvars 并填入真实值（.tfvars 已被 .gitignore，禁止提交）
+
+project_name = "teamspace"
+environment  = "production"
+aws_region   = "us-east-1"
+azs          = ["us-east-1a", "us-east-1b"]
+
+# ---- 数据库 ----
+db_username        = "teamspace"
+db_password        = "替换为强密码"
+app_db_user        = "teamspace_app"
+app_db_password    = "替换为强密码（与 deploy/init-db.sql 一致）"
+db_instance_class  = "db.t4g.micro"
+db_allocated_storage = 20
+
+# ---- Redis ----
+redis_node_type  = "cache.t4g.micro"
+redis_auth_token = "替换为强密码"
+
+# ---- ECS 镜像（首次部署占位，CD 工作流会更新） ----
+api_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/teamspace-api:latest"
+web_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/teamspace-web:latest"
+
+api_desired_count = 1
+web_desired_count = 1
+api_cpu = 512
+api_memory = 1024
+web_cpu = 512
+web_memory = 1024
+
+# ---- 应用配置 ----
+app_url = "https://api.teamspace.dev"
+web_url = "https://app.teamspace.dev"
+jwt_secret = "openssl rand -base64 48 的输出"
+resend_api_key = ""
+email_from = "TeamSpace <noreply@teamspace.dev>"
+stripe_secret_key = ""
+stripe_webhook_secret = ""
+google_client_id = ""
+google_client_secret = ""
+github_client_id = ""
+github_client_secret = ""
+
+# ---- 域名 ----
+domain_name      = "teamspace.dev"
+app_subdomain    = "app"
+api_subdomain    = "api"
+route53_zone_id  = "ZXXXXXXXXXXXXX"  # 留空则跳过 DNS 记录
+
+# ---- 告警 ----
+alarm_sns_topic_arn = ""  # 留空则不发送告警通知

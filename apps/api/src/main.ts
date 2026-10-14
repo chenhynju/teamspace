@@ -7,10 +7,13 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RedisIoAdapter } from './modules/realtime/redis-io.adapter';
+import { StructuredLogger } from './common/services/structured-logger.service';
 
 async function bootstrap() {
+  const isProd = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log'],
+    // 生产输出结构化 JSON 日志，便于 CloudWatch/ELK 解析；开发保留可读日志
+    logger: isProd ? new StructuredLogger() : ['error', 'warn', 'log'],
     // 保留原始请求体，供支付 webhook 做 Stripe 风格 HMAC 验签
     rawBody: true,
   });

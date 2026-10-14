@@ -24,4 +24,7 @@ COPY --from=build /repo/apps/api/node_modules ./apps-api-node_modules
 RUN cp -r apps-api-node_modules/* node_modules/ 2>/dev/null || true && rm -rf apps-api-node_modules
 USER app
 EXPOSE 3001
-CMD ["node", "dist/src/main.js"]
+# 存活探针：进程能响应即健康（就绪探针 /health/ready 供 ALB/Nginx 摘流）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:3001/api/v1/health/live >/dev/null 2>&1 || exit 1
+CMD ["node", "dist/main.js"]

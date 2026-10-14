@@ -12,3 +12,12 @@ coverage
 .uploads
 .pgdata*
 .uploads
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+crash.log
