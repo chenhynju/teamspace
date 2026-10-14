@@ -13,7 +13,9 @@
 //   Project:    draft -> active -> delivered -> archived
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // 生产镜像为 node:20-alpine（musl + openssl 3.x），需显式声明对应引擎目标
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
