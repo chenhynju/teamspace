@@ -16,6 +16,7 @@ export interface Message {
   id: string;
   senderId: string;
   senderName?: string;
+  sender?: { id: string; name: string; avatarUrl: string | null } | null;
   type: 'TEXT' | 'IMAGE' | 'FILE';
   content: string;
   attachment?: { id: string; name: string; mimeType: string; size: string } | null;

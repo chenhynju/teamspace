@@ -7,15 +7,16 @@ const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v
 export default function MessageBubble({ message }: { message: Message }) {
   const me = useAuthStore((s) => s.user);
   const isMe = message.senderId === me?.id;
+  const senderName = message.senderName || message.sender?.name || '';
 
   return (
     <div className={`flex gap-2 mb-3 ${isMe ? 'flex-row-reverse' : ''}`}>
       <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0">
-        {(message.senderName || 'U').slice(0, 1)}
+        {(senderName || '?').slice(0, 1)}
       </div>
       <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isMe && (
-          <span className="text-xs text-slate-500 mb-1">{message.senderName || '未知用户'}</span>
+          <span className="text-xs text-slate-500 mb-1">{senderName || '未知用户'}</span>
         )}
         <div
           className={`px-3 py-2 rounded-lg text-sm ${

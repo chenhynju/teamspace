@@ -1,4 +1,4 @@
-﻿﻿'use client';
+'use client';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
@@ -22,7 +22,21 @@ export default function NewConversationModal({ onClose }: { onClose: () => void 
   useEffect(() => {
     if (!currentOrgId) return;
     api.get('/members')
-      .then((res) => setMembers(res.data?.list ?? res.data ?? []))
+      .then((res) => {
+        // /members 返回成员关系行 { id, user: { id, name, email, avatarUrl }, ... }，需展平
+        const rows: any[] = Array.isArray(res.data) ? res.data : (res.data?.list ?? []);
+        setMembers(
+          rows.map((r) => {
+            const u = r.user ?? r;
+            return {
+              id: u.id,
+              name: u.name ?? u.email ?? '未知用户',
+              email: u.email ?? '',
+              avatarUrl: u.avatarUrl ?? null,
+            };
+          }),
+        );
+      })
       .catch(() => setMembers([]));
   }, [currentOrgId]);
 
@@ -89,7 +103,7 @@ export default function NewConversationModal({ onClose }: { onClose: () => void 
                 className="accent-blue-600"
               />
               <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
-                {m.name.slice(0, 1)}
+                {(m.name || '?').slice(0, 1)}
               </div>
               <div>
                 <div className="text-sm font-medium text-slate-800">{m.name}</div>
