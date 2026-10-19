@@ -1,0 +1,159 @@
+[
+  {
+    "provider": "stripe",
+    "organizationId": "cmvevb8kb0003srn14imgltrq",
+    "plan": "FREE",
+    "entitlementPlanId": "cmvenfibz000aiky9yxihn2hq",
+    "subscriptions": [
+      {
+        "id": "cmvevboxu000lsrn163vbt8st",
+        "organizationId": "cmvevb8kb0003srn14imgltrq",
+        "planId": "cmvenfibz000aiky9yxihn2hq",
+        "status": "CANCELED",
+        "provider": "sandbox",
+        "externalId": null,
+        "currentPeriodStart": "2026-10-19T06:23:22.623Z",
+        "currentPeriodEnd": "2026-11-19T06:23:22.623Z",
+        "seats": 1,
+        "cancelAtPeriodEnd": false,
+        "createdAt": "2026-10-19T06:23:22.626Z"
+      },
+      {
+        "id": "cmvevtaxe002isrn1hbtjh4r4",
+        "organizationId": "cmvevb8kb0003srn14imgltrq",
+        "planId": "cmvenfibz000biky9hvdfs6y3",
+        "status": "CANCELED",
+        "provider": "stripe",
+        "externalId": "sub_1USA8dEQmZqkfz2eQPJQao9k",
+        "currentPeriodStart": "2026-10-19T06:33:38.000Z",
+        "currentPeriodEnd": "2026-11-19T06:33:38.000Z",
+        "seats": 1,
+        "cancelAtPeriodEnd": false,
+        "createdAt": "2026-10-19T06:37:04.275Z"
+      }
+    ],
+    "events": [
+      {
+        "provider": "stripe",
+        "eventId": "evt_1USABiEQmZqkfz2eKOgxRUHG",
+        "type": "customer.subscription.updated",
+        "processed": true,
+        "payload": {
+          "status": "ACTIVE",
+          "planCode": "PRO",
+          "subscriptionId": "sub_1USA8dEQmZqkfz2eQPJQao9k"
+        }
+      },
+      {
+        "provider": "stripe",
+        "eventId": "evt_1USAWsEQmZqkfz2erZnVHKtO",
+        "type": "customer.subscription.deleted",
+        "processed": true,
+        "payload": {
+          "status": "CANCELED",
+          "planCode": "FREE",
+          "subscriptionId": "sub_1USA8dEQmZqkfz2eQPJQao9k"
+        }
+      },
+      {
+        "provider": "stripe",
+        "eventId": "evt_1USA8fEQmZqkfz2ecDqklpOi",
+        "type": "checkout.session.completed",
+        "processed": true,
+        "payload": {
+          "status": "CANCELED",
+          "planCode": "FREE",
+          "subscriptionId": "sub_1USA8dEQmZqkfz2eQPJQao9k"
+        }
+      },
+      {
+        "provider": "stripe",
+        "eventId": "evt_1USA8eEQmZqkfz2ePJnYEXjh",
+        "type": "invoice.paid",
+        "processed": true,
+        "payload": {
+          "status": "CANCELED",
+          "planCode": "FREE",
+          "subscriptionId": "sub_1USA8dEQmZqkfz2eQPJQao9k"
+        }
+      },
+      {
+        "provider": "stripe",
+        "eventId": "evt_1USA8fEQmZqkfz2eJCsEhQt3",
+        "type": "customer.subscription.created",
+        "processed": true,
+        "payload": {
+          "status": "CANCELED",
+          "planCode": "FREE",
+          "subscriptionId": "sub_1USA8dEQmZqkfz2eQPJQao9k"
+        }
+      }
+    ]
+  },
+  {
+    "provider": "paypal",
+    "organizationId": "cmvevccec000usrn1ug6onclw",
+    "plan": "FREE",
+    "entitlementPlanId": "cmvenfibz000aiky9yxihn2hq",
+    "subscriptions": [
+      {
+        "id": "cmvevckdv001dsrn1q1d67lmg",
+        "organizationId": "cmvevccec000usrn1ug6onclw",
+        "planId": "cmvenfibz000aiky9yxihn2hq",
+        "status": "CANCELED",
+        "provider": "sandbox",
+        "externalId": null,
+        "currentPeriodStart": "2026-10-19T06:24:03.378Z",
+        "currentPeriodEnd": "2026-11-19T06:24:03.378Z",
+        "seats": 1,
+        "cancelAtPeriodEnd": false,
+        "createdAt": "2026-10-19T06:24:03.380Z"
+      },
+      {
+        "id": "cmvew9apv003jsrn1uk63iknt",
+        "organizationId": "cmvevccec000usrn1ug6onclw",
+        "planId": "cmvenfibz000biky9hvdfs6y3",
+        "status": "CANCELED",
+        "provider": "paypal",
+        "externalId": "I-0GFYEMNHDYFJ",
+        "currentPeriodStart": "2026-10-19T06:48:53.000Z",
+        "currentPeriodEnd": "2026-10-19T06:48:53.000Z",
+        "seats": 1,
+        "cancelAtPeriodEnd": false,
+        "createdAt": "2026-10-19T06:49:30.500Z"
+      }
+    ],
+    "events": [
+      {
+        "provider": "paypal",
+        "eventId": "WH-00N62563U71127546-3C856353LX5782700",
+        "type": "PAYMENT.SALE.COMPLETED",
+        "processed": true,
+        "payload": {
+          "status": "ACTIVE",
+          "subscriptionId": "I-0GFYEMNHDYFJ"
+        }
+      },
+      {
+        "provider": "paypal",
+        "eventId": "WH-6NH77628U0704763D-86E97810J0445014G",
+        "type": "BILLING.SUBSCRIPTION.ACTIVATED",
+        "processed": true,
+        "payload": {
+          "status": "ACTIVE",
+          "subscriptionId": "I-0GFYEMNHDYFJ"
+        }
+      },
+      {
+        "provider": "paypal",
+        "eventId": "WH-2809523486025901R-94716316BL983402N",
+        "type": "BILLING.SUBSCRIPTION.CANCELLED",
+        "processed": true,
+        "payload": {
+          "status": "CANCELED",
+          "subscriptionId": "I-0GFYEMNHDYFJ"
+        }
+      }
+    ]
+  }
+]

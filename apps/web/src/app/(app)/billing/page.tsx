@@ -38,7 +38,7 @@ export default function BillingPage() {
   }, [hasPerm]);
 
   useEffect(() => {
-    refresh();
+    refresh().catch((e) => setError(e.response?.data?.message ?? '无法加载账单，请重试'));
   }, [refresh]);
 
   const subscribe = async (code: string) => {
@@ -95,6 +95,8 @@ export default function BillingPage() {
 
   const ent = overview?.entitlement;
   const seatsUsed = overview?.activeSeats ?? 0;
+
+  if (!overview || !stripeConfig || !paypalConfig) return <div className="p-6"><PageHeader title="套餐与权益" description="正在加载当前组织的账单配置…" /><InlineError message={error} />{error && <Button onClick={() => { setError(null); refresh().catch((e) => setError(e.response?.data?.message ?? '无法加载账单，请重试')); }}>重试</Button>}</div>;
 
   return (
     <div className="p-6">
@@ -155,10 +157,10 @@ export default function BillingPage() {
                 <Button
                   className="w-full mt-5"
                   variant={current ? 'secondary' : 'primary'}
-                  disabled={current || stripeBusy}
+                  disabled={current || stripeBusy || (p.code === 'FREE' && !stripeConfig?.sandboxEnabled)}
                   onClick={() => subscribe(p.code)}
                 >
-                  {current ? '使用中' : (provider === 'stripe' ? stripeConfig?.enabled : paypalConfig?.enabled) ? `前往 ${provider === 'stripe' ? 'Stripe' : 'PayPal'} 订阅` : '沙盒切换'}
+                  {current ? '使用中' : p.code === 'FREE' && !stripeConfig?.sandboxEnabled ? '取消付费订阅后恢复' : (provider === 'stripe' ? stripeConfig?.enabled : paypalConfig?.enabled) ? `前往 ${provider === 'stripe' ? 'Stripe' : 'PayPal'} 订阅` : '沙盒切换'}
                 </Button>
               </Card>
             );

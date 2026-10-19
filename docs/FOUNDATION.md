@@ -31,6 +31,8 @@ ACTIVE/TRIALING 授予映射套餐；PAST_DUE、UNPAID、PAUSED、CANCELED 默�
 
 后续 SaaS 复用租户上下文、身份、RBAC、资源策略、计费、审计和运行工具。产品模块实现资源适配器及自己的状态机。当前是可复用源码底座，尚不宣称已完成跨应用身份提供商或独立发布 SDK。
 
+PayPal 订阅采用同样的组织级结账协调、当前状态对账、去重和审计规则；只有 ACTIVE、存在首笔付款且无欠款时授予付费权益。Stripe 使用标准 Billing，显式关闭账户可能默认启用的 Managed Payments。两个渠道的已有有效订阅互斥，不能用切换支付按钮重复购买。切换当前组织时重建页面内容，清理上一组织的页面状态。真实沙盒验证与生产边界见 [交付证据](../evidence/foundation-2026-10-19/DELIVERY.md)。
+
 ## 验收追溯扩展
 
 | P / BR / D / AT | 业务结果 |

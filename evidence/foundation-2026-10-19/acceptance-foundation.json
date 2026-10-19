@@ -1,0 +1,90 @@
+{
+  "environment": "http://localhost:3411/api/v1",
+  "at": "2026-10-19T02:55:15.205Z",
+  "checks": [
+    {
+      "name": "cross-tenant membership rejected",
+      "pass": true
+    },
+    {
+      "name": "non-manager cannot modify group",
+      "pass": true
+    },
+    {
+      "name": "restricted project hidden in list",
+      "pass": true
+    },
+    {
+      "name": "restricted project detail denied",
+      "pass": true
+    },
+    {
+      "name": "restricted task list denied",
+      "pass": true
+    },
+    {
+      "name": "foreign organization access denied",
+      "pass": true
+    },
+    {
+      "name": "member can belong to multiple flat units",
+      "pass": true
+    },
+    {
+      "name": "READ grant exposes project",
+      "pass": true
+    },
+    {
+      "name": "READ grant does not allow editing",
+      "pass": true
+    },
+    {
+      "name": "authorized project socket opens",
+      "pass": true
+    },
+    {
+      "name": "grant revoke denies next request",
+      "pass": true
+    },
+    {
+      "name": "revoked project socket rejoin denied",
+      "pass": true
+    },
+    {
+      "name": "last unit manager protected",
+      "pass": true
+    },
+    {
+      "name": "archived unit grants are inactive",
+      "pass": true
+    },
+    {
+      "name": "RLS denies foreign group direct query",
+      "pass": true
+    },
+    {
+      "name": "regression uses non-bypass application role",
+      "pass": true
+    },
+    {
+      "name": "group changes persist audit trail",
+      "pass": true
+    },
+    {
+      "name": "concurrent Stripe deliveries commit once",
+      "pass": true
+    },
+    {
+      "name": "Stripe active atomically grants mapped entitlement",
+      "pass": true
+    },
+    {
+      "name": "Stripe past due revokes paid entitlement",
+      "pass": true
+    },
+    {
+      "name": "reconciliation recovers paid entitlement",
+      "pass": true
+    }
+  ]
+}

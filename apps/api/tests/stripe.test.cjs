@@ -34,3 +34,16 @@ test('provider outage is retryable and event is not marked processed', async () 
 test('live events cannot enter test billing', async () => { const f = fixture(); await assert.rejects(f.service.handle({ ...f.event('evt_live'), livemode: true })); });
 test('official SDK rejects invalid webhook signature before DB access', async () => { const f = fixture(); f.service.client = StripeBillingService.prototype.client.bind(f.service); const controller = new StripeController(f.config, f.prisma, f.service); await assert.rejects(controller.webhook({ headers: { 'stripe-signature': 't=1,v1=bad' }, rawBody: Buffer.from('{}') }), e => e.getStatus() === 401); assert.equal(f.grants(), 0); });
 test('missing price mapping cannot open checkout', async () => { const f = fixture(); await assert.rejects(f.service.checkout('org_1','FOREIGN','monthly'), e => e.getStatus() === 400); });
+
+test('checkout uses standard Billing even when account defaults to Managed Payments', async () => {
+  const f = fixture(); let parameters;
+  f.prisma.plan = { findUnique: async () => ({ status: 'NORMAL', priceMonthly: 99 }) };
+  f.service.checkouts = { reserve: async () => ({ id: 'org_1', name: 'Synthetic', stripeCustomerId: 'cus_1', checkoutAttemptId: 'attempt_1' }) };
+  f.service.client = () => ({
+    prices: { retrieve: async () => ({ active: true, unit_amount: 9900, currency: 'cny', recurring: { interval: 'month' } }) },
+    checkout: { sessions: { create: async params => { parameters = params; return { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/test', expires_at: 1800000000 }; } } },
+  });
+  await f.service.checkout('org_1', 'PRO', 'monthly');
+  assert.deepEqual(parameters.managed_payments, { enabled: false });
+  assert.equal(parameters.mode, 'subscription');
+});

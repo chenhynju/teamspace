@@ -39,7 +39,10 @@ export class StripeBillingService {
     if (org.checkoutUrl) return {url:org.checkoutUrl,sessionId:org.checkoutSessionId};
     const customerId = org.stripeCustomerId ?? (await stripe.customers.create({name:org.name,metadata:{organizationId:orgId}},{idempotencyKey:`teamspace:customer:${orgId}`})).id;
     await this.prisma.withOrg(orgId,tx=>tx.organization.update({where:{id:orgId},data:{stripeCustomerId:customerId}}));
-    const session = await stripe.checkout.sessions.create({customer:customerId,mode:'subscription',line_items:[{price,quantity:1}],client_reference_id:orgId,metadata:{organizationId:orgId},subscription_data:{metadata:{organizationId:orgId}},success_url:this.webUrl()+'/billing?checkout=returned',cancel_url:this.webUrl()+'/billing?checkout=canceled'}, {idempotencyKey:`teamspace:checkout:${org.checkoutAttemptId}`});
+    // Standard Billing is authoritative here; do not inherit an account-level
+    // Managed Payments (merchant of record) default. The pinned SDK predates this field.
+    const billingOptions = { managed_payments: { enabled: false } };
+    const session = await stripe.checkout.sessions.create({...billingOptions,customer:customerId,mode:'subscription',line_items:[{price,quantity:1}],client_reference_id:orgId,metadata:{organizationId:orgId},subscription_data:{metadata:{organizationId:orgId}},success_url:this.webUrl()+'/billing?checkout=returned',cancel_url:this.webUrl()+'/billing?checkout=canceled'}, {idempotencyKey:`teamspace:checkout:${org.checkoutAttemptId}`});
     if (!session.url) throw new ServiceUnavailableException('Stripe 未返回收银台地址');
     await this.prisma.withOrg(orgId,tx=>tx.organization.update({where:{id:orgId},data:{checkoutSessionId:session.id,checkoutUrl:session.url,checkoutExpiresAt:new Date(session.expires_at*1000)}}));
     return {url:session.url,sessionId:session.id};

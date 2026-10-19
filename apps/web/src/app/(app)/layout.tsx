@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
+  const currentOrgId = useAuthStore((s) => s.currentOrgId);
   const loadProfile = useAuthStore((s) => s.loadProfile);
   const [ready, setReady] = useState(false);
   // 首次渲染（含 SSR）统一输出 loading，避免客户端有 token 而服务端无导致的 hydration mismatch
@@ -43,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main key={currentOrgId} className="flex-1 overflow-auto">
         {children}
       </main>
     </div>
