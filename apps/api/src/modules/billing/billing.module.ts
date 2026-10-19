@@ -1,3 +1,6 @@
+import { PayPalBillingService } from './paypal.service';
+import { PayPalController } from './paypal.controller';
+import { CheckoutCoordinator } from './checkout-coordinator.service';
 import { Module } from '@nestjs/common';
 import { BillingController } from './billing.controller';
 import { AuditModule } from '../audit/audit.module';
@@ -9,7 +12,7 @@ import { StripeBillingService } from './stripe.service';
 
 @Module({
   imports: [AuditModule, RealtimeModule],
-  controllers: [BillingController, StripeController],
-  providers: [WebhookIngestService, BillingLifecycleService, StripeBillingService],
+  controllers: [BillingController, StripeController, PayPalController],
+  providers: [PayPalBillingService, CheckoutCoordinator, WebhookIngestService, BillingLifecycleService, StripeBillingService],
 })
 export class BillingModule {}

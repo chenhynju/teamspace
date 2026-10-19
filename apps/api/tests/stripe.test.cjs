@@ -13,7 +13,7 @@ function fixture() {
     $executeRaw: async () => {},
     organization: { findUnique: async () => ({ id: 'org_1', stripeCustomerId: 'cus_1' }), update: async () => {} },
     billingEvent: { findUnique: async ({ where }) => events.has(where.provider_eventId.eventId) ? {} : null, create: async ({ data }) => events.add(data.eventId) },
-    subscription: { updateMany: async () => {}, upsert: async () => {} },
+    subscription: { findFirst: async () => null, updateMany: async () => {}, upsert: async () => {} },
     plan: { findUniqueOrThrow: async ({ where }) => plans[where.code] },
     entitlement: { findUnique: async () => null, upsert: async ({ update }) => { grants++; tx.lastPlan = update.planId; } },
   };

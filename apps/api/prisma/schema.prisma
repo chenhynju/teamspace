@@ -107,6 +107,9 @@ model Organization {
   name      String
   slug      String     @unique
   planId    String?    @map("plan_id")
+  paypalSubscriptionId String? @unique @map("paypal_subscription_id")
+  checkoutProvider String? @map("checkout_provider")
+  checkoutAttemptId String? @map("checkout_attempt_id")
   stripeCustomerId String? @unique @map("stripe_customer_id")
   checkoutSessionId String? @map("checkout_session_id")
   checkoutUrl String? @map("checkout_url")

@@ -1,4 +1,6 @@
 BEGIN;
+ALTER TABLE org_organization ADD COLUMN paypal_subscription_id TEXT, ADD COLUMN checkout_provider TEXT, ADD COLUMN checkout_attempt_id TEXT;
+CREATE UNIQUE INDEX org_organization_paypal_subscription_id_key ON org_organization(paypal_subscription_id);
 -- AlterTable
 ALTER TABLE "org_organization" ADD COLUMN     "checkout_expires_at" TIMESTAMP(3),
 ADD COLUMN     "checkout_plan_key" TEXT,

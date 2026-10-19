@@ -13,6 +13,8 @@ export default function BillingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [stripeConfig, setStripeConfig] = useState<any>(null);
+  const [paypalConfig, setPaypalConfig] = useState<any>(null);
+  const [provider, setProvider] = useState<'stripe'|'paypal'>('stripe');
   const [stripeBusy, setStripeBusy] = useState(false);
 
   // webhook 模拟器
@@ -26,7 +28,8 @@ export default function BillingPage() {
       api.get('/billing/overview'),
       api.get('/billing/plans'),
     ]);
-    setStripeConfig((await api.get('/billing/stripe/configuration')).data);
+    const [stripe, paypal] = await Promise.all([api.get('/billing/stripe/configuration'), api.get('/billing/paypal/configuration')]);
+    setStripeConfig(stripe.data); setPaypalConfig(paypal.data); if (!stripe.data.enabled && paypal.data.enabled) setProvider('paypal');
     setOverview(o.data);
     setPlans(p.data);
     if (hasPerm('billing:manage')) {
@@ -40,9 +43,9 @@ export default function BillingPage() {
 
   const subscribe = async (code: string) => {
     setError(null);
-    if (stripeConfig?.enabled) {
+    if ((provider === 'stripe' ? stripeConfig?.enabled : paypalConfig?.enabled)) {
       setStripeBusy(true);
-      try { const r = await api.post('/billing/stripe/checkout', { planCode: code, interval: 'monthly' }); window.location.assign(r.data.url); }
+      try { const r = await api.post(`/billing/${provider}/checkout`, { planCode: code, interval: 'monthly' }); window.location.assign(r.data.url); }
       catch (e: any) { setError(e.response?.data?.message ?? '无法打开收银台'); }
       finally { setStripeBusy(false); }
       return;
@@ -97,11 +100,17 @@ export default function BillingPage() {
     <div className="p-6">
       <PageHeader
         title="套餐与权益"
-        description={stripeConfig?.enabled ? `Stripe ${stripeConfig.mode === 'live' ? '正式支付' : '测试环境'} · 权益以订阅对账为准` : '套餐沙盒 · 不产生真实扣款'}
+        description={(provider === 'stripe' ? stripeConfig?.enabled : paypalConfig?.enabled) ? `${provider === 'stripe' ? 'Stripe' : 'PayPal'} ${(provider === 'stripe' ? stripeConfig.mode : paypalConfig.mode) === 'live' ? '正式支付' : '测试环境'} · 权益以订阅对账为准` : '套餐沙盒 · 不产生真实扣款'}
       />
 
       <InlineError message={error} />
-      {stripeConfig?.enabled && <Card className="p-4 mb-4 flex gap-3 items-center"><span>返回本站不会直接开通权益，请等待账单同步。</span><Button disabled={stripeBusy} onClick={async () => { setError(null); setStripeBusy(true); try { const r = await api.post('/billing/stripe/portal'); window.location.assign(r.data.url); } catch (e: any) { setError(e.response?.data?.message ?? '打开账单失败'); } finally { setStripeBusy(false); } }}>管理 Stripe 账单</Button><Button variant="secondary" disabled={stripeBusy} onClick={async () => { setStripeBusy(true); try { await api.post('/billing/stripe/reconcile'); await refresh(); } catch (e: any) { setError(e.response?.data?.message ?? '对账失败，请稍后重试'); } finally { setStripeBusy(false); } }}>同步订阅状态</Button></Card>}
+      <div className="flex gap-3 mb-4" aria-label="支付渠道">
+        <Button variant={provider === 'stripe' ? 'primary' : 'secondary'} onClick={() => setProvider('stripe')}>Stripe {stripeConfig?.enabled ? '' : '（未配置）'}</Button>
+        <Button variant={provider === 'paypal' ? 'primary' : 'secondary'} onClick={() => setProvider('paypal')}>PayPal {paypalConfig?.enabled ? '' : '（未配置）'}</Button>
+      </div>
+      {provider === 'paypal' && paypalConfig?.enabled && <Card className="p-4 mb-4 flex gap-3 flex-wrap"><span>PayPal 授权后，权益以服务器对账结果为准。</span><Button disabled={stripeBusy} onClick={async () => { setStripeBusy(true); try { await api.post('/billing/paypal/reconcile'); await refresh(); } catch (e: any) { setError(e.response?.data?.message ?? '对账失败'); } finally { setStripeBusy(false); } }}>同步 PayPal 订阅</Button><Button variant="danger" disabled={stripeBusy} onClick={async () => { if (!confirm('立即取消 PayPal 订阅并收回付费权益？此操作不会自动退款。')) return; setStripeBusy(true); try { await api.post('/billing/paypal/cancel'); await refresh(); } catch (e: any) { setError(e.response?.data?.message ?? '取消失败'); } finally { setStripeBusy(false); } }}>立即取消 PayPal 订阅</Button></Card>}
+
+      {provider === 'stripe' && stripeConfig?.enabled && <Card className="p-4 mb-4 flex gap-3 items-center"><span>返回本站不会直接开通权益，请等待账单同步。</span><Button disabled={stripeBusy} onClick={async () => { setError(null); setStripeBusy(true); try { const r = await api.post('/billing/stripe/portal'); window.location.assign(r.data.url); } catch (e: any) { setError(e.response?.data?.message ?? '打开账单失败'); } finally { setStripeBusy(false); } }}>管理 Stripe 账单</Button><Button variant="secondary" disabled={stripeBusy} onClick={async () => { setStripeBusy(true); try { await api.post('/billing/stripe/reconcile'); await refresh(); } catch (e: any) { setError(e.response?.data?.message ?? '对账失败，请稍后重试'); } finally { setStripeBusy(false); } }}>同步订阅状态</Button></Card>}
 
 
       {/* 当前权益 */}
@@ -134,9 +143,9 @@ export default function BillingPage() {
                 </div>
                 <div className="mt-3">
                   <span className="text-2xl font-semibold text-slate-800">
-                    ¥{Number(p.priceMonthly)}
+                    {new Intl.NumberFormat('zh-CN', { style: 'currency', currency: (provider === 'stripe' ? stripeConfig?.currency : paypalConfig?.currency) ?? 'CNY' }).format(Number(p.priceMonthly))}
                   </span>
-                  <span className="text-sm text-slate-400"> /月 · ¥{Number(p.priceYearly)}/年</span>
+                  <span className="text-sm text-slate-400"> /月 · {new Intl.NumberFormat('zh-CN', { style: 'currency', currency: (provider === 'stripe' ? stripeConfig?.currency : paypalConfig?.currency) ?? 'CNY' }).format(Number(p.priceYearly))}/年</span>
                 </div>
                 <ul className="mt-4 space-y-1.5 text-xs text-slate-600">
                   <li>{p.seatsIncluded} 个席位</li>
@@ -146,10 +155,10 @@ export default function BillingPage() {
                 <Button
                   className="w-full mt-5"
                   variant={current ? 'secondary' : 'primary'}
-                  disabled={current}
+                  disabled={current || stripeBusy}
                   onClick={() => subscribe(p.code)}
                 >
-                  {current ? '使用中' : stripeConfig?.enabled ? '前往 Stripe 订阅' : '沙盒切换'}
+                  {current ? '使用中' : (provider === 'stripe' ? stripeConfig?.enabled : paypalConfig?.enabled) ? `前往 ${provider === 'stripe' ? 'Stripe' : 'PayPal'} 订阅` : '沙盒切换'}
                 </Button>
               </Card>
             );
@@ -158,7 +167,7 @@ export default function BillingPage() {
       ) : null}
 
       {/* webhook 幂等模拟 */}
-      {hasPerm('billing:change') ? (
+      {hasPerm('billing:change') && stripeConfig?.sandboxEnabled ? (
         <Card className="p-5 mb-6">
           <h2 className="text-sm font-semibold text-slate-700 mb-1">Webhook 幂等模拟器（AT05）</h2>
           <p className="text-xs text-slate-400 mb-4">

@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { StripeBillingService } from '../src/modules/billing/stripe.service';
 import { AuditService } from '../src/modules/audit/audit.service';
+import { CheckoutCoordinator } from '../src/modules/billing/checkout-coordinator.service';
+import { PayPalBillingService } from '../src/modules/billing/paypal.service';
 
 const base = process.env.API_BASE ?? 'http://localhost:3001/api/v1';
 const db = new PrismaClient({ datasources: { db: { url: process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL } } });
@@ -57,6 +59,12 @@ async function main() {
   check('archived unit grants are inactive', (await call(`/projects/${projectId}`,member)).status===404);
   const app = new PrismaClient();
   try {
+    const coordinator = new CheckoutCoordinator(billingPrisma);
+    const intentOrg = await db.organization.create({data:{name:'Checkout concurrency fixture',slug:`checkout-fixture-${suffix}`}});
+    const intents = await Promise.all([coordinator.reserve(intentOrg.id,'stripe','PRO:monthly'),coordinator.reserve(intentOrg.id,'stripe','PRO:monthly')]);
+    check('concurrent checkout retries reuse persisted intent',intents[0].checkoutAttemptId===intents[1].checkoutAttemptId);
+    let conflict=false;try{await coordinator.reserve(intentOrg.id,'paypal','PRO:monthly');}catch(e:any){conflict=e.getStatus?.()===409;}
+    check('unknown Stripe result blocks duplicate PayPal checkout',conflict);
     const rows = await app.$transaction(async tx=>{await tx.$executeRaw`SELECT set_config('app.current_org_id', ${foreignRow.organizationId}, true)`;return tx.collaborationGroup.findMany({where:{id:g}});});
     check('RLS denies foreign group direct query',rows.length===0);
     const role:any[] = await app.$queryRaw`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
@@ -82,6 +90,19 @@ async function main() {
     check('Stripe past due revokes paid entitlement',(await db.entitlement.findUniqueOrThrow({where:{organizationId:org.id}})).planId===free.id);
     providerStatus='active';await billing.handle(event(`evt_restore_${suffix}`));
     check('reconciliation recovers paid entitlement',(await db.entitlement.findUniqueOrThrow({where:{organizationId:org.id}})).planId===pro.id);
+    providerStatus='canceled';await billing.handle(event(`evt_cancel_${suffix}`));
+    const paypalConfig=new ConfigService({PAYPAL_ENV:'sandbox',PAYPAL_CLIENT_ID:'fixture',PAYPAL_CLIENT_SECRET:'fixture',PAYPAL_WEBHOOK_ID:'WH-fixture',PAYPAL_PLAN_MAP:JSON.stringify({PRO:{monthly:'P-fixture'}})});
+    const paypal=new PayPalBillingService(paypalConfig,billingPrisma,new AuditService(billingPrisma),coordinator);
+    let paypalStatus='ACTIVE';
+    const paypalId=`I-fixture-${suffix}`;
+    paypal.request=(async()=>({id:paypalId,plan_id:'P-fixture',status:paypalStatus,create_time:'2026-01-01T00:00:00Z',billing_info:{last_payment:{amount:{value:'99.00',currency_code:'USD'},time:'2026-01-01T00:00:00Z'},next_billing_time:'2030-01-01T00:00:00Z',outstanding_balance:{value:'0'}}})) as any;
+    await db.organization.update({where:{id:org.id},data:{paypalSubscriptionId:paypalId}});
+    const paypalEvent={id:`WH-fixture-${suffix}`,event_type:'BILLING.SUBSCRIPTION.ACTIVATED',resource:{id:paypalId}};
+    const deliveriesPayPal=await Promise.all([paypal.handle(paypalEvent),paypal.handle(paypalEvent)]);
+    check('concurrent PayPal delivery commits once',deliveriesPayPal.filter((x:any)=>x.duplicate).length===1);
+    check('PayPal paid subscription grants local entitlement',(await db.entitlement.findUniqueOrThrow({where:{organizationId:org.id}})).planId===pro.id);
+    paypalStatus='CANCELLED';await paypal.handle({...paypalEvent,id:`WH-cancel-${suffix}`});
+    check('PayPal cancellation revokes local entitlement',(await db.entitlement.findUniqueOrThrow({where:{organizationId:org.id}})).planId===free.id);
   } finally {await billingPrisma.$disconnect();}
   const dir=process.env.EVIDENCE_DIR??resolve(__dirname,'../../../evidence');mkdirSync(dir,{recursive:true});writeFileSync(resolve(dir,'acceptance-foundation.json'),JSON.stringify({environment:base,at:new Date().toISOString(),checks},null,2));
   assert(checks.every(c=>c.pass),'foundation acceptance failed');
