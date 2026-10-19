@@ -1,5 +1,3 @@
-import { ResourceAccessGuard } from '../groups/resource-access.guard';
-import { ResourcePolicyService } from '../groups/resource-policy.service';
 import {
   Controller,
   Get,
@@ -18,7 +16,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { createReadStream, mkdirSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { nanoid } from 'nanoid';
@@ -52,19 +50,17 @@ export class FilesController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly resourcePolicy: ResourcePolicyService,
   ) {}
 
   /** 文件列表（可按项目过滤） */
   @Get()
-  @UseGuards(OrgContextGuard, PermissionsGuard, ResourceAccessGuard)
+  @UseGuards(OrgContextGuard, PermissionsGuard)
   @RequirePermissions('file:manage')
-  async list(@CurrentOrg() org: OrgContext, @Req() accessReq: Request, @Query('projectId') projectId?: string) {
+  async list(@CurrentOrg() org: OrgContext, @Query('projectId') projectId?: string) {
     const rows = await this.prisma.withOrg(org.organizationId, (tx) =>
       tx.file.findMany({
         where: {
           organizationId: org.organizationId,
-          projectId: { in: accessReq.accessibleProjectIds ?? [] },
           ...(projectId ? { projectId } : {}),
         },
         include: {
@@ -80,7 +76,7 @@ export class FilesController {
 
   /** 上传文件（multipart，字段名 file；同名文件自动升版本） */
   @Post('upload')
-  @UseGuards(OrgContextGuard, PermissionsGuard, ResourceAccessGuard)
+  @UseGuards(OrgContextGuard, PermissionsGuard)
   @RequirePermissions('file:manage')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
@@ -98,7 +94,6 @@ export class FilesController {
     }
 
     return this.prisma.withOrg(org.organizationId, async (tx) => {
-      await this.resourcePolicy.assert(tx, org.organizationId, me.id, projectId, 'WRITE');
       const project = await tx.project.findFirst({
         where: { id: projectId, organizationId: org.organizationId },
       });
@@ -156,7 +151,7 @@ export class FilesController {
 
   /** 组织成员下载（必须是该组织成员） */
   @Get(':id/download')
-  @UseGuards(OrgContextGuard, PermissionsGuard, ResourceAccessGuard)
+  @UseGuards(OrgContextGuard, PermissionsGuard)
   @RequirePermissions('file:manage')
   download(
     @Param('id') id: string,
@@ -174,7 +169,7 @@ export class FilesController {
 
   /** 创建共享链接（可指定访问用户与有效期） */
   @Post(':id/share')
-  @UseGuards(OrgContextGuard, PermissionsGuard, ResourceAccessGuard)
+  @UseGuards(OrgContextGuard, PermissionsGuard)
   @RequirePermissions('file:share')
   share(
     @Param('id') id: string,

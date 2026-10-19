@@ -18,7 +18,6 @@ import { ProvisioningService } from '../src/modules/provisioning/provisioning.se
 import 'dotenv/config';
 
 const prisma = new PrismaClient({
-  transactionOptions: { timeout: 120000, maxWait: 10000 },
   datasources: { db: { url: process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL } },
 });
 const provisioning = new ProvisioningService();

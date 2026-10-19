@@ -16,7 +16,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { mkdirSync, writeFileSync, createReadStream, statSync } from 'fs';
 import * as path from 'path';
 import { nanoid } from 'nanoid';

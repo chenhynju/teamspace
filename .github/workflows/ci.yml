@@ -73,6 +73,7 @@ jobs:
       JWT_SECRET: ci-synthetic-secret-only
       BILLING_WEBHOOK_SECRET: ci-synthetic-webhook-only
       BILLING_MODE: sandbox
+      UPLOAD_ROOT: ${{ github.workspace }}/.test-runs/uploads
       EMAIL_PROVIDER: console
       API_BASE: http://localhost:3001/api/v1
       WS_URL: http://localhost:3001
@@ -104,6 +105,8 @@ jobs:
           node dist/main.js > /tmp/teamspace-api.log 2>&1 &
           for attempt in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health/ready && break; sleep 1; done
           pnpm run test:acceptance
+          test -d "$UPLOAD_ROOT"
+          test ! -d .uploads
       - name: Upload acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
