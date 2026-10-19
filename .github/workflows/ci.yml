@@ -46,6 +46,9 @@ jobs:
       - name: Test (API)
         run: pnpm --filter @teamspace/api run test
 
+      - name: Test (Web tenant state)
+        run: pnpm --filter @teamspace/web run test
+
   acceptance:
     name: Tenant and product acceptance
     runs-on: ubuntu-latest

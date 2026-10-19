@@ -24,7 +24,9 @@ function ImContent() {
 
   useEffect(() => {
     if (!currentOrgId) return;
-    api.get('/conversations').then((res) => setConversations(res.data)).catch(() => setConversations([]));
+    let active = true;
+    api.get('/conversations').then((res) => { if (active) setConversations(res.data); }).catch(() => { if (active) setConversations([]); });
+    return () => { active = false; };
   }, [currentOrgId, setConversations]);
 
   if (!currentOrgId) return null;

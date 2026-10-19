@@ -44,6 +44,7 @@ export function useImRealtime() {
     if (!token || !currentOrgId) return;
     const socket = getSocket(token);
     socketRefCount++;
+    let active = true;
 
     const onMessageNew = (data: {
       conversationId: string;
@@ -58,6 +59,7 @@ export function useImRealtime() {
       };
     }) => {
       const { conversationId, message } = data;
+      if (!active || useAuthStore.getState().currentOrgId !== currentOrgId || !useImStore.getState().conversations.some(c => c.id === conversationId)) return;
       if (currentRef.current === conversationId) {
         appendMessage(message);
         // 标记已读
@@ -69,14 +71,16 @@ export function useImRealtime() {
     };
 
     const onConversationUpdated = () => {
+      if (!active || useAuthStore.getState().currentOrgId !== currentOrgId) return;
       // 刷新会话列表
-      api.get('/conversations').then((res) => setConversations(res.data)).catch(() => {});
+      api.get('/conversations').then((res) => { if (active && useAuthStore.getState().currentOrgId === currentOrgId) setConversations(res.data); }).catch(() => {});
     };
 
     socket.on('im:message:new', onMessageNew);
     socket.on('im:conversation:updated', onConversationUpdated);
 
     return () => {
+      active = false;
       socket.off('im:message:new', onMessageNew);
       socket.off('im:conversation:updated', onConversationUpdated);
       releaseSocket();

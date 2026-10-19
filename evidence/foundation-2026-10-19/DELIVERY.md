@@ -24,6 +24,7 @@ Snapshots: `real-payments-active.json` (both PRO), `real-payments-state.json` (b
 
 - Stripe sandbox account defaults to Managed Payments. Standard subscription checkout now explicitly disables that merchant-of-record option. A targeted regression test covers the request behavior.
 - Tenant content remounts when the current organization changes, clearing page state instead of displaying the previous tenant's data.
+- Organization switches and logout clear global IM messages/conversations and permissions. Old organization/message responses and stale realtime handlers cannot repopulate the new tenant's cache. Two focused Web state tests cover immediate clearing and A→B→A response ordering.
 - Billing waits for configuration before rendering environment labels, handles initial loading errors with retry, and does not offer a nonexistent FREE checkout in provider mode.
 - API TypeScript and 17 payment unit tests passed. Web TypeScript and lint passed; lint retains one existing image optimization warning in IM.
 
@@ -31,10 +32,12 @@ Snapshots: `real-payments-active.json` (both PRO), `real-payments-state.json` (b
 
 - Browser created a flat collaboration unit, rejected removal of its last effective manager, and added another member (`browser-groups.png`).
 - Browser created/activated the synthetic customer portal project, assigned a task and completed it, uploaded `browser-delivery.txt`, and downloaded it after API process restarts.
+- Browser completed the project's DELIVERED transition. Switching to the empty PayPal test tenant removed the original project rows immediately; switching back restored the delivered project. Screenshots: `browser-project-delivered.png`, `browser-file-shared.png`.
 - Browser downloaded file SHA-256 matches upload source: `41649537ab4bad2172b690f27f4bac5adca839fb1d0d8b3f38f96e1e6b439c1a`.
 - Browser created a seven-day explicit file share; visitor page displayed a text/plain download link. This does not substitute for negative share authorization tests in CI.
 - Isolated database plus named upload volume backup/restore drill previously passed: fresh network-isolated PostgreSQL restore, row-count comparison and restored file hashes; no production data restored or overwritten.
 - `ci-39192454624/` is a green historical foundation CI artifact. The sibling first local AT01–AT08 report includes a timeout and is not the authoritative full-pass claim. Latest source CI before these follow-up fixes was green at c45d416 / run 39195611957.
+- Follow-up payment/UI commit 08e559b passed all four CI jobs in run 39220130611, including product/tenant acceptance. Additional IM cache safeguards and evidence are verified by the subsequent commit's CI.
 
 ## Remaining boundaries
 

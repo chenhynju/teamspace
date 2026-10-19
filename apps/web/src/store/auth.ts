@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import { useImStore } from './im';
 
 export interface MembershipOrg {
   id: string;
@@ -58,12 +59,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setCurrentOrg: async (id) => {
+    if (get().currentOrgId !== id) {
+      useImStore.setState({ conversations: [], currentConversationId: null, messages: [] });
+      set({ perms: [], roleKeys: [] });
+    }
     localStorage.setItem('current_org_id', id);
     set({ currentOrgId: id });
     await get().loadOrgContext();
   },
 
   logout: () => {
+    useImStore.setState({ conversations: [], currentConversationId: null, messages: [] });
     localStorage.removeItem('access_token');
     localStorage.removeItem('current_org_id');
     set({
@@ -100,6 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const orgId = get().currentOrgId;
     if (!orgId) return;
     const { data } = await api.get('/organizations/current');
+    if (get().currentOrgId !== orgId) return;
     set({ perms: data.perms ?? [], roleKeys: data.roleKeys ?? [] });
   },
 

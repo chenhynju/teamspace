@@ -18,9 +18,12 @@ export default function ChatWindow() {
 
   useEffect(() => {
     if (!currentConversationId || !currentOrgId) return;
+    let active = true;
+    setMessages([]);
     api.get(`/conversations/${currentConversationId}/messages?limit=50`)
-      .then((res) => setMessages(res.data))
-      .catch(() => setMessages([]));
+      .then((res) => { if (active) setMessages(res.data); })
+      .catch(() => { if (active) setMessages([]); });
+    return () => { active = false; };
   }, [currentConversationId, currentOrgId, setMessages]);
 
   useEffect(() => {
