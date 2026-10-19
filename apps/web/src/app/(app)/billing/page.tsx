@@ -74,9 +74,9 @@ export default function BillingPage() {
       payload: { amount: Number(amount) },
     };
     try {
-      const r1 = await api.post('/billing/webhook', body);
+      const r1 = await api.post('/billing/sandbox/grant', { eventId, amount: Number(amount) });
       const mid = (await api.get('/billing/overview')).data.entitlement.aiCreditsTotal;
-      const r2 = await api.post('/billing/webhook', body);
+      const r2 = await api.post('/billing/sandbox/grant', { eventId, amount: Number(amount) });
       const after = (await api.get('/billing/overview')).data.entitlement.aiCreditsTotal;
 
       setSimLog([

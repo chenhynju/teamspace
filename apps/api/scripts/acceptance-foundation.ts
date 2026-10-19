@@ -59,12 +59,6 @@ async function main() {
   check('archived unit grants are inactive', (await call(`/projects/${projectId}`,member)).status===404);
   const app = new PrismaClient();
   try {
-    const coordinator = new CheckoutCoordinator(billingPrisma);
-    const intentOrg = await db.organization.create({data:{name:'Checkout concurrency fixture',slug:`checkout-fixture-${suffix}`}});
-    const intents = await Promise.all([coordinator.reserve(intentOrg.id,'stripe','PRO:monthly'),coordinator.reserve(intentOrg.id,'stripe','PRO:monthly')]);
-    check('concurrent checkout retries reuse persisted intent',intents[0].checkoutAttemptId===intents[1].checkoutAttemptId);
-    let conflict=false;try{await coordinator.reserve(intentOrg.id,'paypal','PRO:monthly');}catch(e:any){conflict=e.getStatus?.()===409;}
-    check('unknown Stripe result blocks duplicate PayPal checkout',conflict);
     const rows = await app.$transaction(async tx=>{await tx.$executeRaw`SELECT set_config('app.current_org_id', ${foreignRow.organizationId}, true)`;return tx.collaborationGroup.findMany({where:{id:g}});});
     check('RLS denies foreign group direct query',rows.length===0);
     const role:any[] = await app.$queryRaw`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
@@ -81,6 +75,12 @@ async function main() {
   await db.organization.update({where:{id:org.id},data:{stripeCustomerId:customer}});
   const event=(id:string)=>({id,type:'customer.subscription.updated',livemode:false,data:{object:{customer,status:'stale-payload'}}}) as any;
   try {
+    const coordinator = new CheckoutCoordinator(billingPrisma);
+    const intentOrg = await db.organization.create({data:{name:'Checkout concurrency fixture',slug:`checkout-fixture-${suffix}`}});
+    const intents = await Promise.all([coordinator.reserve(intentOrg.id,'stripe','PRO:monthly'),coordinator.reserve(intentOrg.id,'stripe','PRO:monthly')]);
+    check('concurrent checkout retries reuse persisted intent',intents[0].checkoutAttemptId===intents[1].checkoutAttemptId);
+    let conflict=false;try{await coordinator.reserve(intentOrg.id,'paypal','PRO:monthly');}catch(e:any){conflict=e.getStatus?.()===409;}
+    check('unknown Stripe result blocks duplicate PayPal checkout',conflict);
     const deliveries=await Promise.all([billing.handle(event(`evt_foundation_${suffix}`)),billing.handle(event(`evt_foundation_${suffix}`))]);
     check('concurrent Stripe deliveries commit once',deliveries.filter((x:any)=>x.duplicate).length===1 && await db.billingEvent.count({where:{eventId:`evt_foundation_${suffix}`}})===1);
     const pro=await db.plan.findUniqueOrThrow({where:{code:'PRO'}});

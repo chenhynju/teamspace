@@ -1,5 +1,6 @@
 import type { Request } from 'express';
 import { ResourceAccessGuard } from '../groups/resource-access.guard';
+import { ResourcePolicyService } from '../groups/resource-policy.service';
 import {
   Controller,
   Get,
@@ -88,6 +89,7 @@ export class TasksController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeEventsService,
+    private readonly resourcePolicy: ResourcePolicyService,
   ) {}
 
   @Get()
@@ -114,6 +116,7 @@ export class TasksController {
         where: { id: dto.projectId, organizationId: org.organizationId },
       });
       if (!project) throw new BadRequestException({ code: 'PROJECT_INVALID', message: '项目不存在' });
+      if (dto.assigneeId) await this.assertAssignee(tx, org.organizationId, project.id, dto.assigneeId);
       const task = await tx.task.create({
         data: {
           organizationId: org.organizationId,
@@ -136,6 +139,10 @@ export class TasksController {
   @RequirePermissions('task:manage')
   update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @CurrentOrg() org: OrgContext) {
     return this.prisma.withOrg(org.organizationId, async (tx) => {
+      if (dto.assigneeId) {
+        const current = await tx.task.findFirstOrThrow({ where: { id, organizationId: org.organizationId } });
+        await this.assertAssignee(tx, org.organizationId, current.projectId, dto.assigneeId);
+      }
       const task = await tx.task.update({
         where: { id },
         data: {
@@ -166,5 +173,11 @@ export class TasksController {
       }
       return { deleted: true, id };
     });
+  }
+
+  private async assertAssignee(tx: any, orgId: string, projectId: string, userId: string) {
+    const member = await tx.membership.findFirst({ where: { organizationId: orgId, userId, status: 'ACTIVE' } });
+    if (!member) throw new BadRequestException({ code: 'ASSIGNEE_INVALID', message: '只能指派给本组织的有效成员' });
+    await this.resourcePolicy.assert(tx, orgId, userId, projectId, 'READ');
   }
 }

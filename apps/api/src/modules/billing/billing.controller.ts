@@ -26,6 +26,12 @@ import { Public } from '../../common/decorators/public.decorator';
 import { WebhookIngestService } from './webhook-ingest.service';
 import { BillingLifecycleService } from './billing-lifecycle.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
+import { IsInt, IsString, Max, Min, MaxLength } from 'class-validator';
+
+class SandboxGrantDto {
+  @IsString() @MaxLength(100) eventId: string;
+  @IsInt() @Min(1) @Max(100000000) amount: number;
+}
 
 @Controller('billing')
 export class BillingController {
@@ -207,6 +213,18 @@ export class BillingController {
       const result = await this.ingest.ingest(tx, dto);
       if (result.duplicate) return { duplicate: true, eventId: dto.eventId };
       return { received: true, eventId: dto.eventId, applied: result.applied };
+    });
+  }
+
+  @Post('sandbox/grant')
+  @UseGuards(OrgContextGuard, PermissionsGuard)
+  @RequirePermissions('billing:change')
+  sandboxGrant(@Body() dto: SandboxGrantDto, @CurrentOrg() org: OrgContext) {
+    if (this.config.get('BILLING_MODE', process.env.NODE_ENV === 'production' ? 'stripe' : 'sandbox') !== 'sandbox') throw new BadRequestException('沙盒已禁用');
+    return this.prisma.withOrg(org.organizationId, async tx => {
+      await tx.$executeRaw`SELECT id FROM org_organization WHERE id = ${org.organizationId} FOR UPDATE`;
+      const dtoEvent = { organizationId: org.organizationId, provider: 'internal-sandbox', eventId: dto.eventId, type: 'entitlement.grant_ai_credits', payload: { amount: dto.amount } };
+      return this.ingest.ingest(tx, dtoEvent);
     });
   }
 
