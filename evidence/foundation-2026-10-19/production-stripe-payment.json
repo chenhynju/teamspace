@@ -1,0 +1,11 @@
+{
+  "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+  "subscriptionId": "sub_1USDKaEQmZqkfz2eZYORwayi",
+  "status": "active",
+  "invoiceId": "in_1USDKaEQmZqkfz2eON6g6woO",
+  "invoiceStatus": "paid",
+  "paid": true,
+  "amount": 9900,
+  "currency": "cny",
+  "path": "official test API payment, public fixed webhook; hosted Checkout previously browser-tested"
+}

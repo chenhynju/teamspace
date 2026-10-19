@@ -1,0 +1,89 @@
+[
+  {
+    "provider": "stripe",
+    "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+    "plan": "PRO",
+    "entitlementPlanId": "cmv84gep1000blrccx6o5ocuc",
+    "events": [
+      {
+        "id": "cmvf301qw003dx6n0m69902vg",
+        "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+        "provider": "stripe",
+        "eventId": "evt_1USDKdEQmZqkfz2edBkZK3MB",
+        "type": "customer.subscription.created",
+        "payload": {
+          "status": "ACTIVE",
+          "planCode": "PRO",
+          "subscriptionId": "sub_1USDKaEQmZqkfz2eZYORwayi"
+        },
+        "processed": true,
+        "createdAt": "2026-10-19T09:58:16.280Z"
+      },
+      {
+        "id": "cmvf301iz0033x6n0x287alt7",
+        "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+        "provider": "stripe",
+        "eventId": "evt_1USDKdEQmZqkfz2eyhdzlZew",
+        "type": "invoice.paid",
+        "payload": {
+          "status": "ACTIVE",
+          "planCode": "PRO",
+          "subscriptionId": "sub_1USDKaEQmZqkfz2eZYORwayi"
+        },
+        "processed": true,
+        "createdAt": "2026-10-19T09:58:15.995Z"
+      }
+    ],
+    "at": "2026-10-19T10:14:43.348Z"
+  },
+  {
+    "provider": "paypal",
+    "organizationId": "cmvf2m0fx001kx6n019vpmhk6",
+    "plan": "PRO",
+    "entitlementPlanId": "cmv84gep1000blrccx6o5ocuc",
+    "events": [
+      {
+        "id": "cmvf3kazm0013f817dmdumq8b",
+        "organizationId": "cmvf2m0fx001kx6n019vpmhk6",
+        "provider": "paypal",
+        "eventId": "WH-70929712LH660020L-60N19860LN383461L",
+        "type": "BILLING.SUBSCRIPTION.ACTIVATED",
+        "payload": {
+          "status": "ACTIVE",
+          "subscriptionId": "I-LCWP6LGKRXER"
+        },
+        "processed": true,
+        "createdAt": "2026-10-19T10:14:01.378Z"
+      },
+      {
+        "id": "cmvf3k8ym000sf817ecxvyipx",
+        "organizationId": "cmvf2m0fx001kx6n019vpmhk6",
+        "provider": "paypal",
+        "eventId": "WH-1JG92182HJ367212P-5NG79651NN572700L",
+        "type": "PAYMENT.SALE.COMPLETED",
+        "payload": {
+          "status": "ACTIVE",
+          "subscriptionId": "I-LCWP6LGKRXER"
+        },
+        "processed": true,
+        "createdAt": "2026-10-19T10:13:58.750Z"
+      }
+    ],
+    "remote": {
+      "id": "I-LCWP6LGKRXER",
+      "status": "ACTIVE",
+      "lastPayment": {
+        "amount": {
+          "currency_code": "USD",
+          "value": "99.0"
+        },
+        "time": "2026-10-19T10:13:45Z"
+      },
+      "outstanding": {
+        "currency_code": "USD",
+        "value": "0.0"
+      }
+    },
+    "at": "2026-10-19T10:14:44.063Z"
+  }
+]

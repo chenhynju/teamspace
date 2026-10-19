@@ -1,0 +1,11 @@
+{
+  "stripe": {
+    "id": "we_1US7ibEQmZqkfz2eUg4m3KkX",
+    "url": "https://api.purelamp.uk/api/v1/billing/stripe/webhook",
+    "status": "enabled"
+  },
+  "paypal": {
+    "id": "60N07026TP336443B",
+    "url": "https://api.purelamp.uk/api/v1/billing/paypal/webhook"
+  }
+}

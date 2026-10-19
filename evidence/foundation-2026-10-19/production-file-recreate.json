@@ -1,0 +1,45 @@
+{
+  "phase": "after-recreate",
+  "stripeFixedWebhookPlan": "PRO",
+  "events": [
+    {
+      "id": "cmvf301qw003dx6n0m69902vg",
+      "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+      "provider": "stripe",
+      "eventId": "evt_1USDKdEQmZqkfz2edBkZK3MB",
+      "type": "customer.subscription.created",
+      "payload": {
+        "status": "ACTIVE",
+        "planCode": "PRO",
+        "subscriptionId": "sub_1USDKaEQmZqkfz2eZYORwayi"
+      },
+      "processed": true,
+      "createdAt": "2026-10-19T09:58:16.280Z"
+    },
+    {
+      "id": "cmvf301iz0033x6n0x287alt7",
+      "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+      "provider": "stripe",
+      "eventId": "evt_1USDKdEQmZqkfz2eyhdzlZew",
+      "type": "invoice.paid",
+      "payload": {
+        "status": "ACTIVE",
+        "planCode": "PRO",
+        "subscriptionId": "sub_1USDKaEQmZqkfz2eZYORwayi"
+      },
+      "processed": true,
+      "createdAt": "2026-10-19T09:58:15.995Z"
+    }
+  ],
+  "applicationRoleBypass": false,
+  "file": {
+    "organizationId": "cmvf2lzlk000tx6n089sp42vv",
+    "projectId": "cmvf34lkr003yx6n0hon49tbf",
+    "fileId": "cmvf34lm80045x6n09pkehvvn",
+    "sha256": "b0f2f429284b8b4df1a9801438b5f70256eeed0907de6ff89a53f1d6ddb2d5cf",
+    "downloadSha256": "b0f2f429284b8b4df1a9801438b5f70256eeed0907de6ff89a53f1d6ddb2d5cf",
+    "persistentRoot": "/data/uploads"
+  },
+  "foreignTenantStatus": 403,
+  "at": "2026-10-19T10:03:35.380Z"
+}

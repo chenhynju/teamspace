@@ -1,0 +1,111 @@
+[
+  {
+    "label": "initially-paid",
+    "at": "2026-10-19T09:31:18.117Z",
+    "organizationId": "cmvf1zykw00n1srn1q3igmgbn",
+    "providerStatus": "active",
+    "localPlan": "PRO",
+    "entitlementPlan": "PRO",
+    "subscriptionStatuses": [
+      "ACTIVE"
+    ],
+    "events": [
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eHXvoyOna",
+        "type": "customer.subscription.created",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eaL5waBaK",
+        "type": "invoice.paid",
+        "processed": true
+      }
+    ]
+  },
+  {
+    "label": "renewal-state",
+    "at": "2026-10-19T09:36:39.577Z",
+    "organizationId": "cmvf1zykw00n1srn1q3igmgbn",
+    "providerStatus": "past_due",
+    "localPlan": "FREE",
+    "entitlementPlan": "FREE",
+    "subscriptionStatuses": [
+      "PAST_DUE"
+    ],
+    "events": [
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eHXvoyOna",
+        "type": "customer.subscription.created",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eaL5waBaK",
+        "type": "invoice.paid",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxmEQmZqkfz2ePytnAr6Z",
+        "type": "customer.subscription.updated",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxtEQmZqkfz2e5C8hrE0a",
+        "type": "invoice.payment_failed",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxtEQmZqkfz2e5sxyoZk5",
+        "type": "customer.subscription.updated",
+        "processed": true
+      }
+    ]
+  },
+  {
+    "label": "recovered",
+    "at": "2026-10-19T09:39:38.191Z",
+    "organizationId": "cmvf1zykw00n1srn1q3igmgbn",
+    "providerStatus": "active",
+    "localPlan": "PRO",
+    "entitlementPlan": "PRO",
+    "subscriptionStatuses": [
+      "ACTIVE"
+    ],
+    "events": [
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eHXvoyOna",
+        "type": "customer.subscription.created",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCtwEQmZqkfz2eaL5waBaK",
+        "type": "invoice.paid",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxmEQmZqkfz2ePytnAr6Z",
+        "type": "customer.subscription.updated",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxtEQmZqkfz2e5C8hrE0a",
+        "type": "invoice.payment_failed",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USCxtEQmZqkfz2e5sxyoZk5",
+        "type": "customer.subscription.updated",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USD0MEQmZqkfz2epSn4DOtG",
+        "type": "invoice.paid",
+        "processed": true
+      },
+      {
+        "eventId": "evt_1USD0MEQmZqkfz2e6YyDVOV9",
+        "type": "customer.subscription.updated",
+        "processed": true
+      }
+    ]
+  }
+]
