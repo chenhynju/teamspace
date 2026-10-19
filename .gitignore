@@ -21,3 +21,9 @@ coverage
 *.tfvars
 !*.tfvars.example
 crash.log
+
+# Local acceptance and archives
+.test-runs/
+*.tsbuildinfo
+*.bundle
+backups/

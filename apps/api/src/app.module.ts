@@ -1,3 +1,4 @@
+import { GroupsModule } from './modules/groups/groups.module';
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -30,6 +31,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    GroupsModule,
     RealtimeModule,
     AuthModule,
     UsersModule,

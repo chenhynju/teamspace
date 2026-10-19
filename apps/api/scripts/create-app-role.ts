@@ -31,17 +31,17 @@ async function main() {
     END IF;
   END $$;`);
 
-  await prisma.$executeRawUnsafe('GRANT USAGE, CREATE ON SCHEMA public TO teamspace_app');
-  await prisma.$executeRawUnsafe('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO teamspace_app');
-  await prisma.$executeRawUnsafe('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO teamspace_app');
+  await prisma.$executeRawUnsafe('GRANT USAGE ON SCHEMA public TO teamspace_app');
+  await prisma.$executeRawUnsafe('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO teamspace_app');
+  await prisma.$executeRawUnsafe('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO teamspace_app');
 
   // 未来 db push 新建表（owner=teamspace）时自动授权
   await prisma.$executeRawUnsafe(`
     ALTER DEFAULT PRIVILEGES FOR ROLE ${TABLE_OWNER} IN SCHEMA public
-      GRANT ALL PRIVILEGES ON TABLES TO teamspace_app`);
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO teamspace_app`);
   await prisma.$executeRawUnsafe(`
     ALTER DEFAULT PRIVILEGES FOR ROLE ${TABLE_OWNER} IN SCHEMA public
-      GRANT ALL PRIVILEGES ON SEQUENCES TO teamspace_app`);
+      GRANT USAGE, SELECT ON SEQUENCES TO teamspace_app`);
 
   const rows: any = await prisma.$queryRaw`
     SELECT rolname, rolsuper, rolbypassrls FROM pg_roles

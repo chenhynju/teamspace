@@ -12,6 +12,9 @@ export default function BillingPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const [stripeConfig, setStripeConfig] = useState<any>(null);
+  const [stripeBusy, setStripeBusy] = useState(false);
+
   // webhook 模拟器
   const [eventId, setEventId] = useState('evt-demo-001');
   const [amount, setAmount] = useState(50000);
@@ -23,6 +26,7 @@ export default function BillingPage() {
       api.get('/billing/overview'),
       api.get('/billing/plans'),
     ]);
+    setStripeConfig((await api.get('/billing/stripe/configuration')).data);
     setOverview(o.data);
     setPlans(p.data);
     if (hasPerm('billing:manage')) {
@@ -36,6 +40,14 @@ export default function BillingPage() {
 
   const subscribe = async (code: string) => {
     setError(null);
+    if (stripeConfig?.enabled) {
+      setStripeBusy(true);
+      try { const r = await api.post('/billing/stripe/checkout', { planCode: code, interval: 'monthly' }); window.location.assign(r.data.url); }
+      catch (e: any) { setError(e.response?.data?.message ?? '无法打开收银台'); }
+      finally { setStripeBusy(false); }
+      return;
+    }
+    if (!stripeConfig?.sandboxEnabled) { setError('支付尚未配置，请联系管理员'); return; }
     if (!confirm(`确认在沙盒环境切换到「${code}」套餐？不会产生真实支付。`)) return;
     try {
       await api.post('/billing/subscribe', { planCode: code, interval: 'monthly' });
@@ -85,10 +97,12 @@ export default function BillingPage() {
     <div className="p-6">
       <PageHeader
         title="套餐与权益"
-        description="服务替身：当前为沙盒环境，所有变更不产生真实扣款"
+        description={stripeConfig?.enabled ? `Stripe ${stripeConfig.mode === 'live' ? '正式支付' : '测试环境'} · 权益以订阅对账为准` : '套餐沙盒 · 不产生真实扣款'}
       />
 
       <InlineError message={error} />
+      {stripeConfig?.enabled && <Card className="p-4 mb-4 flex gap-3 items-center"><span>返回本站不会直接开通权益，请等待账单同步。</span><Button disabled={stripeBusy} onClick={async () => { setError(null); setStripeBusy(true); try { const r = await api.post('/billing/stripe/portal'); window.location.assign(r.data.url); } catch (e: any) { setError(e.response?.data?.message ?? '打开账单失败'); } finally { setStripeBusy(false); } }}>管理 Stripe 账单</Button><Button variant="secondary" disabled={stripeBusy} onClick={async () => { setStripeBusy(true); try { await api.post('/billing/stripe/reconcile'); await refresh(); } catch (e: any) { setError(e.response?.data?.message ?? '对账失败，请稍后重试'); } finally { setStripeBusy(false); } }}>同步订阅状态</Button></Card>}
+
 
       {/* 当前权益 */}
       {overview ? (
@@ -135,7 +149,7 @@ export default function BillingPage() {
                   disabled={current}
                   onClick={() => subscribe(p.code)}
                 >
-                  {current ? '使用中' : '沙盒切换'}
+                  {current ? '使用中' : stripeConfig?.enabled ? '前往 Stripe 订阅' : '沙盒切换'}
                 </Button>
               </Card>
             );
@@ -176,7 +190,7 @@ export default function BillingPage() {
       ) : null}
 
       {/* 计费事件 */}
-      {hasPerm('billing:manage') ? (
+      {hasPerm('billing:manage') && stripeConfig?.sandboxEnabled ? (
         <Card className="p-5">
           <h2 className="text-sm font-semibold text-slate-700 mb-3">计费事件（最近 50 条）</h2>
           {events.length === 0 ? (

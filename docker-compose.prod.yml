@@ -60,6 +60,11 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       BILLING_WEBHOOK_SECRET: ${BILLING_WEBHOOK_SECRET:-}
+      BILLING_MODE: ${BILLING_MODE:-stripe}
+      STRIPE_PRICE_MAP: ${STRIPE_PRICE_MAP:-}
+      UPLOAD_ROOT: /data/uploads
+    volumes:
+      - uploads:/data/uploads
     ports:
       - "3001:3001"
     networks: [internal]
@@ -80,6 +85,7 @@ services:
 volumes:
   pgdata:
   redisdata:
+  uploads:
 
 networks:
   internal:

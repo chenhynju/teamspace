@@ -16,7 +16,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { mkdirSync, writeFileSync, createReadStream, statSync } from 'fs';
 import * as path from 'path';
 import { nanoid } from 'nanoid';
@@ -30,7 +30,7 @@ import { AuditService, BusinessType } from '../audit/audit.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateDirectDto, CreateGroupDto, AddMembersDto, SendMessageDto, MarkReadDto } from './dto/im.dto';
 
-const UPLOAD_ROOT = path.resolve(process.cwd(), '.uploads');
+const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_ROOT || path.join(process.cwd(), '.uploads'));
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 @Controller('conversations')

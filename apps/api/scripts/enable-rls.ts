@@ -22,6 +22,9 @@ const prisma = new PrismaClient({
 // 标准租户表：仅按 organization_id 隔离
 const STANDARD_TABLES = [
   'org_workspace',
+  'org_collaboration_group',
+  'org_group_member',
+  'org_resource_grant',
   'sys_dept',
   'sys_post',
   'prj_project',

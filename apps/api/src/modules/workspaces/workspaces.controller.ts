@@ -11,7 +11,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';

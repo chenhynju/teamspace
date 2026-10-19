@@ -12,7 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
  *   3. 无消息引用的残留附件（上传后未发送成功等）超过 3 天同样清除。
  */
 const RETENTION_DAYS = 3;
-const UPLOAD_ROOT = path.resolve(process.cwd(), '.uploads');
+const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_ROOT || path.join(process.cwd(), '.uploads'));
 
 export interface RetentionSummary {
   cutoff: string;

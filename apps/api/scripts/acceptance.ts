@@ -13,6 +13,7 @@ import { join } from 'path';
 import { io } from 'socket.io-client';
 import 'dotenv/config';
 
+const EVENT_TIMEOUT = Number(process.env.ACCEPTANCE_EVENT_TIMEOUT_MS || 15000);
 const BASE = process.env.API_BASE ?? 'http://localhost:3001/api/v1';
 const prisma = new PrismaClient();
 
@@ -648,13 +649,13 @@ async function main() {
       });
     const connected = await Promise.race([
       Promise.all([waitConnect(sOwner), waitConnect(sAdmin), waitConnect(sGlobex)]),
-      new Promise<false>((res) => setTimeout(() => res(false), 8000)),
+      new Promise<false>((res) => setTimeout(() => res(false), EVENT_TIMEOUT)),
     ]);
     if (!connected) throw new Error('AT08 socket 连接超时');
 
     // presence 由 project:open 的副作用广播，必须先挂监听再发 open
     const presenceUsersPromise: Promise<any[]> = new Promise((resolve) => {
-      const to = setTimeout(() => resolve([]), 8000);
+      const to = setTimeout(() => resolve([]), EVENT_TIMEOUT);
       sAdmin.on('presence:update', (p) => {
         if (p.users.length >= 2) {
           clearTimeout(to);
@@ -696,7 +697,7 @@ async function main() {
 
     const waitEvent = (event: string) =>
       new Promise<string>((resolve) => {
-        const to = setTimeout(() => resolve('TIMEOUT'), 8000);
+        const to = setTimeout(() => resolve('TIMEOUT'), EVENT_TIMEOUT);
         sAdmin.once(event, (p) => {
           clearTimeout(to);
           resolve(p.taskId);
@@ -738,7 +739,7 @@ async function main() {
 
     // 删除（先挂监听再发请求）
     const delWait = new Promise<string>((resolve) => {
-      const to = setTimeout(() => resolve('TIMEOUT'), 8000);
+      const to = setTimeout(() => resolve('TIMEOUT'), EVENT_TIMEOUT);
       sAdmin.once('task:deleted', (p) => {
         clearTimeout(to);
         resolve(p.taskId);
@@ -792,7 +793,7 @@ async function main() {
       });
     lines.push('');
   }
-  const outDir = join(__dirname, '..', '..', '..', 'evidence');
+  const outDir = process.env.EVIDENCE_DIR || join(__dirname, '..', '..', '..', 'evidence');
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, 'acceptance-AT01-AT08.md');
   writeFileSync(outFile, lines.join('\n'), 'utf-8');

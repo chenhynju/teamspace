@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
   type RawBodyRequest,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -99,6 +99,9 @@ export class BillingController {
     @CurrentUser() me: { id: string },
     @Req() req: Request,
   ) {
+    if (this.config.get('BILLING_MODE', process.env.NODE_ENV === 'production' ? 'stripe' : 'sandbox') !== 'sandbox') {
+      throw new BadRequestException({ code: 'SANDBOX_DISABLED', message: '当前环境请使用 Stripe 收银台' });
+    }
     return this.prisma.withOrg(org.organizationId, async (tx) => {
       const plan = await tx.plan.findFirst({ where: { code: dto.planCode } });
       if (!plan) throw new BadRequestException({ code: 'PLAN_INVALID', message: '套餐不存在' });
@@ -189,6 +192,7 @@ export class BillingController {
   @Public()
   @Post('webhook')
   async webhook(@Req() req: RawBodyRequest<Request>) {
+    if (this.config.get('BILLING_MODE', process.env.NODE_ENV === 'production' ? 'stripe' : 'sandbox') !== 'sandbox') throw new UnauthorizedException('沙盒事件已禁用');
     const secret = this.config.get<string>('BILLING_WEBHOOK_SECRET')?.trim();
     if (!secret) {
       // fail-closed：未配置密钥时拒绝一切事件，而不是放行

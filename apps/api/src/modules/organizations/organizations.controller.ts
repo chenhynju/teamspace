@@ -7,7 +7,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';

@@ -107,11 +107,18 @@ model Organization {
   name      String
   slug      String     @unique
   planId    String?    @map("plan_id")
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+  checkoutSessionId String? @map("checkout_session_id")
+  checkoutUrl String? @map("checkout_url")
+  checkoutExpiresAt DateTime? @map("checkout_expires_at")
+  checkoutPlanKey String? @map("checkout_plan_key")
   status    OrgStatus  @default(ACTIVE)
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
   plan          Plan?          @relation(fields: [planId], references: [id])
+  collaborationGroups CollaborationGroup[]
+  resourceGrants ResourceGrant[]
   workspaces    Workspace[]
   memberships   Membership[]
   roles         Role[]
@@ -164,7 +171,9 @@ model Membership {
   dept         Dept?              @relation(fields: [deptId], references: [id])
   roles        MembershipRole[]
   posts        MembershipPost[]
+  groupMemberships GroupMember[]
 
+  @@unique([id, organizationId])
   @@unique([organizationId, userId])
   @@index([organizationId, status])
   @@index([deptId])
@@ -347,6 +356,7 @@ model Project {
   name           String
   description    String?
   status         ProjectStatus @default(DRAFT)
+  visibility     String @default("ORGANIZATION")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
@@ -355,7 +365,9 @@ model Project {
   owner        User         @relation("ProjectOwner", fields: [ownerId], references: [id])
   tasks        Task[]
   files        File[]
+  grants       ResourceGrant[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, workspaceId])
   @@map("prj_project")
 }
@@ -440,6 +452,8 @@ model Subscription {
   organizationId     String    @map("organization_id")
   planId             String    @map("plan_id")
   status             SubStatus @default(ACTIVE)
+  provider           String @default("sandbox")
+  externalId         String? @unique @map("external_id")
   currentPeriodStart DateTime  @map("current_period_start")
   currentPeriodEnd   DateTime  @map("current_period_end")
   seats              Int       @default(1)
@@ -802,4 +816,47 @@ enum SubStatus {
 enum NoticeType {
   NOTICE
   ANNOUNCEMENT
+}
+
+// Flat collaboration units: tenant is the boundary; kinds do not imply hierarchy.
+model CollaborationGroup {
+  id String @id @default(cuid())
+  organizationId String @map("organization_id")
+  name String
+  kind String @default("TEAM")
+  description String?
+  archivedAt DateTime? @map("archived_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members GroupMember[]
+  grants ResourceGrant[]
+  @@unique([organizationId, name])
+  @@unique([id, organizationId])
+  @@map("org_collaboration_group")
+}
+
+model GroupMember {
+  id String @id @default(cuid())
+  organizationId String @map("organization_id")
+  groupId String @map("group_id")
+  membershipId String @map("membership_id")
+  role String @default("MEMBER")
+  group CollaborationGroup @relation(fields: [groupId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  @@unique([groupId, membershipId])
+  @@map("org_group_member")
+}
+
+// First resource adapter is Project; its tasks/files inherit access, no implicit hierarchy.
+model ResourceGrant {
+  id String @id @default(cuid())
+  organizationId String @map("organization_id")
+  groupId String @map("group_id")
+  projectId String @map("project_id")
+  access String @default("READ")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  group CollaborationGroup @relation(fields: [groupId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  project Project @relation(fields: [projectId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  @@unique([groupId, projectId])
+  @@map("org_resource_grant")
 }

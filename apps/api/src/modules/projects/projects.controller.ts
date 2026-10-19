@@ -1,3 +1,4 @@
+import { ResourceAccessGuard } from '../groups/resource-access.guard';
 import {
   Controller,
   Get,
@@ -13,7 +14,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrgContextGuard } from '../../common/guards/org-context.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -25,7 +26,7 @@ import { CreateProjectDto, UpdateProjectDto } from './dto/project.dto';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 
 @Controller('projects')
-@UseGuards(OrgContextGuard, PermissionsGuard)
+@UseGuards(OrgContextGuard, PermissionsGuard, ResourceAccessGuard)
 export class ProjectsController {
   constructor(
     private readonly prisma: PrismaService,
@@ -37,6 +38,7 @@ export class ProjectsController {
   @RequirePermissions('project:list')
   list(
     @CurrentOrg() org: OrgContext,
+    @Req() accessReq: Request,
     @Query('workspaceId') workspaceId?: string,
     @Query('status') status?: string,
   ) {
@@ -44,6 +46,7 @@ export class ProjectsController {
       tx.project.findMany({
         where: {
           organizationId: org.organizationId,
+          id: { in: accessReq.accessibleProjectIds ?? [] },
           ...(workspaceId ? { workspaceId } : {}),
           ...(status ? { status: status as any } : {}),
         },

@@ -12,7 +12,7 @@ import {
   GoneException,
   NotFoundException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { createHash } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { nanoid } from 'nanoid';

@@ -322,7 +322,7 @@ async function main() {
     ...checks.map((c) => `| ${c.name} | ${c.expected} | ${c.actual.replace(/\|/g, '\\|')} | ${c.pass ? 'PASS' : 'FAIL'} |`),
     ``,
   ];
-  writeFileSync(join(process.cwd(), '..', '..', 'evidence', 'acceptance-AT09-im.md'), lines.join('\n'));
+  writeFileSync(join(process.env.EVIDENCE_DIR || join(process.cwd(), '..', '..', 'evidence'), 'acceptance-AT09-im.md'), lines.join('\n'));
 
   await prisma.$disconnect();
   process.exit(passed === checks.length ? 0 : 1);

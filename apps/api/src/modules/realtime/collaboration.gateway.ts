@@ -1,3 +1,4 @@
+import { ResourcePolicyService } from '../groups/resource-policy.service';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -61,6 +62,7 @@ export class CollaborationGateway
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly events: RealtimeEventsService,
+    private readonly resourcePolicy: ResourcePolicyService,
   ) {
     this.jwt = new JwtService({
       secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
@@ -149,7 +151,7 @@ export class CollaborationGateway
         where: { organizationId: body.organizationId, status: 'ACTIVE' },
       }),
     );
-    if (!allowed) return { ok: false, code: 'NOT_MEMBER' };
+    if (!allowed || !(await this.resourcePolicy.socketAllowed(body.organizationId, user.id, body.projectId))) return { ok: false, code: 'NOT_MEMBER' };
 
     // 离开此前的项目房间（每个连接一次只看一个项目）
     for (const r of client.data.joined) {
@@ -228,7 +230,7 @@ export class CollaborationGateway
             where: { organizationId: r.organizationId, status: 'ACTIVE' },
           }),
         );
-        if (!ms) {
+        if (!ms || !(await this.resourcePolicy.socketAllowed(r.organizationId, data.user.id, r.projectId))) {
           s.leave(RealtimeEventsService.projectRoom(r.organizationId, r.projectId));
           s.leave(RealtimeEventsService.orgRoom(r.organizationId));
           data.joined = data.joined.filter(

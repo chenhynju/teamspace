@@ -18,11 +18,12 @@ import { ProvisioningService } from '../src/modules/provisioning/provisioning.se
 import 'dotenv/config';
 
 const prisma = new PrismaClient({
+  transactionOptions: { timeout: 120000, maxWait: 10000 },
   datasources: { db: { url: process.env.DATABASE_ADMIN_URL ?? process.env.DATABASE_URL } },
 });
 const provisioning = new ProvisioningService();
 const PASSWORD = 'Passw0rd!';
-const UPLOAD_ROOT = path.resolve(process.cwd(), '.uploads');
+const UPLOAD_ROOT = path.resolve(process.env.UPLOAD_ROOT || path.join(process.cwd(), '.uploads'));
 
 // ==================== 菜单模板 ====================
 type MenuSeed = {

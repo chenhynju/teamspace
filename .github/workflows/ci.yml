@@ -44,7 +44,71 @@ jobs:
         run: pnpm -r run build
 
       - name: Test (API)
-        run: pnpm --filter @teamspace/api run test -- --passWithNoTests
+        run: pnpm --filter @teamspace/api run test
+
+  acceptance:
+    name: Tenant and product acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: teamspace
+          POSTGRES_PASSWORD: teamspace_dev_pwd
+          POSTGRES_DB: teamspace
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U teamspace" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://teamspace_app:teamspace_app_pwd@127.0.0.1:5432/teamspace
+      DATABASE_ADMIN_URL: postgresql://teamspace:teamspace_dev_pwd@127.0.0.1:5432/teamspace
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci-synthetic-secret-only
+      BILLING_WEBHOOK_SECRET: ci-synthetic-webhook-only
+      BILLING_MODE: sandbox
+      EMAIL_PROVIDER: console
+      API_BASE: http://localhost:3001/api/v1
+      WS_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Initialize isolated database
+        working-directory: apps/api
+        run: |
+          pnpm exec prisma generate
+          DATABASE_URL="$DATABASE_ADMIN_URL" pnpm exec prisma db push --skip-generate
+          pnpm exec ts-node --transpile-only prisma/seed.ts
+          DATABASE_URL="$DATABASE_ADMIN_URL" pnpm exec ts-node --transpile-only scripts/create-app-role.ts
+          pnpm exec ts-node --transpile-only scripts/enable-rls.ts
+          pnpm exec ts-node --transpile-only scripts/seed-im-menus.ts
+          pnpm exec ts-node --transpile-only scripts/seed-system-menus.ts
+          pnpm exec ts-node --transpile-only scripts/grant-monitor-privs.ts
+          pnpm run build
+      - name: Run product acceptance
+        working-directory: apps/api
+        run: |
+          node dist/main.js > /tmp/teamspace-api.log 2>&1 &
+          for attempt in $(seq 1 30); do curl -fsS http://localhost:3001/api/v1/health/ready && break; sleep 1; done
+          pnpm run test:acceptance
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-evidence
+          path: |
+            evidence/
+            /tmp/teamspace-api.log
 
   terraform-validate:
     name: Terraform · fmt & validate

@@ -50,6 +50,7 @@ export class BillingLifecycleService {
       const now = new Date();
       const due = await tx.subscription.findMany({
         where: {
+          provider: 'sandbox',
           OR: [
             { status: 'ACTIVE', currentPeriodEnd: { lte: now } },
             { status: 'PAST_DUE' },

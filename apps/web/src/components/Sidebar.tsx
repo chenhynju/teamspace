@@ -41,6 +41,7 @@ const GROUPS: NavGroup[] = [
   {
     label: '组织管理',
     items: [
+      { href: '/groups', label: '协作单元', icon: Users, perm: 'project:list' },
       { href: '/members', label: '成员', icon: Users, perm: 'member:list' },
       { href: '/invitations', label: '邀请', icon: UserCog, perm: 'invite:list' },
       { href: '/depts', label: '部门岗位', icon: Network, perm: 'dept:manage' },
