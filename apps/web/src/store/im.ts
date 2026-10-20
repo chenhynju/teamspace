@@ -29,8 +29,8 @@ interface ImState {
   messages: Message[];
   setConversations: (convs: ConversationItem[]) => void;
   setCurrentConversationId: (id: string | null) => void;
-  setMessages: (msgs: Message[]) => void;
-  appendMessage: (msg: Message) => void;
+  setMessages: (msgs: Message[], conversationId?: string) => void;
+  appendMessage: (msg: Message, conversationId?: string) => void;
   updateConversationPreview: (conversationId: string, lastMessage: Message) => void;
   incrementUnread: (conversationId: string) => void;
   resetUnread: (conversationId: string) => void;
@@ -41,9 +41,20 @@ export const useImStore = create<ImState>((set) => ({
   currentConversationId: null,
   messages: [],
   setConversations: (conversations) => set({ conversations }),
-  setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
-  setMessages: (messages) => set({ messages }),
-  appendMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+  setCurrentConversationId: (currentConversationId) => set((s) =>
+    s.currentConversationId === currentConversationId ? s : { currentConversationId, messages: [] }),
+  setMessages: (messages, conversationId) => set((s) => {
+    if (conversationId && s.currentConversationId !== conversationId) return s;
+    // History may finish after a live event; retain messages already received.
+    const rows = conversationId ? [...messages, ...s.messages] : messages;
+    return { messages: Array.from(new Map(rows.map(m => [m.id, m])).values())
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)) };
+  }),
+  appendMessage: (msg, conversationId) => set((s) => {
+    if (conversationId && s.currentConversationId !== conversationId) return s;
+    if (s.messages.some(m => m.id === msg.id)) return s;
+    return { messages: [...s.messages, msg] };
+  }),
   updateConversationPreview: (conversationId, lastMessage) =>
     set((s) => ({
       conversations: s.conversations.map((c) =>

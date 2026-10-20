@@ -21,8 +21,8 @@ export default function ChatWindow() {
     let active = true;
     setMessages([]);
     api.get(`/conversations/${currentConversationId}/messages?limit=50`)
-      .then((res) => { if (active) setMessages(res.data); })
-      .catch(() => { if (active) setMessages([]); });
+      .then((res) => { if (active) setMessages(res.data, currentConversationId); })
+      .catch(() => { /* Keep live messages if history loading fails. */ });
     return () => { active = false; };
   }, [currentConversationId, currentOrgId, setMessages]);
 
@@ -49,7 +49,7 @@ export default function ChatWindow() {
         ))}
         <div ref={bottomRef} />
       </div>
-      <MessageComposer conversationId={conv.id} />
+      <MessageComposer key={`${currentOrgId}:${conv.id}`} conversationId={conv.id} />
     </>
   );
 }

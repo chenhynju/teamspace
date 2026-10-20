@@ -61,7 +61,7 @@ export function useImRealtime() {
       const { conversationId, message } = data;
       if (!active || useAuthStore.getState().currentOrgId !== currentOrgId || !useImStore.getState().conversations.some(c => c.id === conversationId)) return;
       if (currentRef.current === conversationId) {
-        appendMessage(message);
+        appendMessage(message, conversationId);
         // 标记已读
         api.post(`/conversations/${conversationId}/read`, { lastReadMessageId: message.id }).catch(() => {});
       } else {
