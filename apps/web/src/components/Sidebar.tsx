@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import {
   LayoutDashboard, Users, UserCog, FolderKanban, FileText, Files,
-  CreditCard, ScrollText, LogOut, Building2, Network, MessageSquare,
+  ScrollText, LogOut, Building2, Network, MessageSquare,
   Bell, Menu as MenuIcon, BookOpen, SlidersHorizontal, LogIn as LogInIcon,
   Wifi, Server, Database, Clock, HardDrive,
 } from 'lucide-react';
@@ -67,12 +67,6 @@ const GROUPS: NavGroup[] = [
       { href: '/monitor/cache', label: '缓存监控', icon: Database, perm: 'monitor:cache:view' },
       { href: '/monitor/jobs', label: '定时任务', icon: Clock, perm: 'monitor:job:list' },
       { href: '/monitor/database', label: '数据库会话', icon: HardDrive, perm: 'monitor:db:view' },
-    ],
-  },
-  {
-    label: '计费中心',
-    items: [
-      { href: '/billing', label: '套餐权益', icon: CreditCard, perm: 'billing:view' },
     ],
   },
 ];
