@@ -10,6 +10,7 @@ export default function ChatWindow() {
   const currentConversationId = useImStore((s) => s.currentConversationId);
   const messages = useImStore((s) => s.messages);
   const setMessages = useImStore((s) => s.setMessages);
+  const resetUnread = useImStore((s) => s.resetUnread);
   const conversations = useImStore((s) => s.conversations);
   const currentOrgId = useAuthStore((s) => s.currentOrgId);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -21,10 +22,18 @@ export default function ChatWindow() {
     let active = true;
     setMessages([]);
     api.get(`/conversations/${currentConversationId}/messages?limit=50`)
-      .then((res) => { if (active) setMessages(res.data, currentConversationId); })
+      .then(async (res) => {
+        if (!active) return;
+        setMessages(res.data, currentConversationId);
+        const last = res.data[res.data.length - 1];
+        if (last) {
+          await api.post(`/conversations/${currentConversationId}/read`, { lastReadMessageId: last.id });
+          if (active) resetUnread(currentConversationId);
+        }
+      })
       .catch(() => { /* Keep live messages if history loading fails. */ });
     return () => { active = false; };
-  }, [currentConversationId, currentOrgId, setMessages]);
+  }, [currentConversationId, currentOrgId, setMessages, resetUnread]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

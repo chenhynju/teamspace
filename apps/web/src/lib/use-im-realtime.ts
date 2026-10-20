@@ -63,8 +63,10 @@ export function useImRealtime() {
       if (currentRef.current === conversationId) {
         appendMessage(message, conversationId);
         // 标记已读
-        api.post(`/conversations/${conversationId}/read`, { lastReadMessageId: message.id }).catch(() => {});
-      } else {
+        api.post(`/conversations/${conversationId}/read`, { lastReadMessageId: message.id }).then(() => {
+          if (active && useAuthStore.getState().currentOrgId === currentOrgId) useImStore.getState().resetUnread(conversationId);
+        }).catch(() => {});
+      } else if (message.senderId !== useAuthStore.getState().user?.id) {
         incrementUnread(conversationId);
       }
       updateConversationPreview(conversationId, message);

@@ -50,3 +50,20 @@ test('rapid Enter sends once; IME confirmation does not send',async()=>{
   assert.equal(posts,1);
   pending({data:message('sent')});await new Promise(resolve=>setImmediate(resolve));
 });
+test('opening a conversation from a deep link acknowledges history and clears unread',async()=>{
+  const store=load('src/store/im.ts').useImStore;
+  store.setState({currentConversationId:'A',conversations:[{id:'A',unreadCount:1}]});
+  const reads=[];
+  const jsx=(type,props)=>({type,props});
+  const Window=load('src/components/im/ChatWindow.tsx',{
+    react:{useEffect:fn=>fn(),useRef:()=>({current:null})},
+    'react/jsx-runtime':{jsx,jsxs:jsx},
+    '@/store/im':{useImStore:selector=>selector(store.getState())},
+    '@/store/auth':{useAuthStore:selector=>selector({currentOrgId:'org'})},
+    '@/lib/api':{api:{get:async()=>({data:[message('latest')]}),post:async(url,body)=>reads.push({url,body})}},
+    './MessageBubble':{default:()=>null},'./MessageComposer':{default:()=>null},
+  }).default;
+  Window();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(reads[0].body.lastReadMessageId,'latest');
+  assert.equal(store.getState().conversations[0].unreadCount,0);
+});
